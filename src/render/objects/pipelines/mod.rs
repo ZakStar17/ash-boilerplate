@@ -3,12 +3,12 @@ mod graphics;
 
 use ash::vk;
 
-use self::{compute::ComputePipelines, graphics::GraphicsPipeline};
+use self::{compute::ComputePipelines, graphics::GraphicsPipelines};
 
 use super::DescriptorSets;
 
 pub struct Pipelines {
-  graphics: GraphicsPipeline,
+  pub graphics: GraphicsPipelines,
   pub compute: ComputePipelines,
 }
 
@@ -19,17 +19,13 @@ impl Pipelines {
     render_pass: vk::RenderPass,
     descriptor_sets: &DescriptorSets,
   ) -> Self {
-    let graphics = GraphicsPipeline::create(device, swapchain_extent, render_pass);
+    let graphics = GraphicsPipelines::create(device, swapchain_extent, render_pass);
     let compute = ComputePipelines::create(device, descriptor_sets);
 
     Self { graphics, compute }
   }
 
-  pub fn get_graphics(&self) -> vk::Pipeline {
-    self.graphics.pipeline
-  }
-
-  pub fn recreate_graphics(
+  pub fn recreate_main(
     &mut self,
     device: &ash::Device,
     swapchain_extent: vk::Extent2D,
@@ -39,7 +35,7 @@ impl Pipelines {
     unsafe {
       self.graphics.destroy_self(device);
     }
-    self.graphics = GraphicsPipeline::create(device, swapchain_extent, render_pass);
+    self.graphics = GraphicsPipelines::create(device, swapchain_extent, render_pass);
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {

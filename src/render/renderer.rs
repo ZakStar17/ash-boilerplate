@@ -253,7 +253,7 @@ impl Renderer {
         self.device.destroy_render_pass(self.render_pass, None);
         self.render_pass = objects::create_render_pass(&self.device, self.swapchains.get_format());
       }
-      self.pipelines.recreate_graphics(
+      self.pipelines.recreate_main(
         &self.device,
         self.swapchains.get_extent(),
         self.render_pass,

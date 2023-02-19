@@ -2,23 +2,20 @@ use std::{ffi::CString, ptr};
 
 use ash::vk;
 
-use crate::render::{
-  objects::{SquareInstance, Vertex},
-  shaders::TriangleShader,
-};
+use crate::render::{objects::{SquareInstance, Vertex}, shaders};
 
-pub struct GraphicsPipeline {
+pub struct GraphicsPipelines {
   pub layout: vk::PipelineLayout,
-  pub pipeline: vk::Pipeline,
+  pub main: vk::Pipeline,
 }
 
-impl GraphicsPipeline {
+impl GraphicsPipelines {
   pub fn create(
     device: &ash::Device,
     swapchain_extent: vk::Extent2D,
     render_pass: vk::RenderPass,
   ) -> Self {
-    let mut triangle_shader = TriangleShader::load(device);
+    let mut shader = shaders::plain::Shader::load(device);
     let main_function_name = CString::new("main").unwrap(); // the beginning function name in shader code.
 
     let shader_stages = [
@@ -27,7 +24,7 @@ impl GraphicsPipeline {
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         p_next: ptr::null(),
         flags: vk::PipelineShaderStageCreateFlags::empty(),
-        module: triangle_shader.vert,
+        module: shader.vert,
         p_name: main_function_name.as_ptr(),
         p_specialization_info: ptr::null(),
         stage: vk::ShaderStageFlags::VERTEX,
@@ -37,7 +34,7 @@ impl GraphicsPipeline {
         s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
         p_next: ptr::null(),
         flags: vk::PipelineShaderStageCreateFlags::empty(),
-        module: triangle_shader.frag,
+        module: shader.frag,
         p_name: main_function_name.as_ptr(),
         p_specialization_info: ptr::null(),
         stage: vk::ShaderStageFlags::FRAGMENT,
@@ -185,7 +182,7 @@ impl GraphicsPipeline {
     let layout = unsafe {
       device
         .create_pipeline_layout(&layout_create_info, None)
-        .expect("Failed to create pipeline layout!")
+        .expect("Failed to create pipeline layout")
     };
 
     let create_infos = [vk::GraphicsPipelineCreateInfo {
@@ -217,17 +214,17 @@ impl GraphicsPipeline {
     };
 
     unsafe {
-      triangle_shader.destroy_self(device);
+      shader.destroy_self(device);
     }
 
     Self {
       layout,
-      pipeline: pipelines[0],
+      main: pipelines[0],
     }
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    device.destroy_pipeline(self.pipeline, None);
+    device.destroy_pipeline(self.main, None);
     device.destroy_pipeline_layout(self.layout, None);
   }
 }

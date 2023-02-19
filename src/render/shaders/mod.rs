@@ -1,3 +1,7 @@
+mod compute;
+pub mod plain;
+pub use compute::ComputeShaders;
+
 use ash::vk;
 use std::{path::Path, ptr};
 
@@ -28,11 +32,6 @@ fn create_shader_module(device: &ash::Device, code: Vec<u8>) -> vk::ShaderModule
   unsafe {
     device
       .create_shader_module(&shader_module_create_info, None)
-      .expect("Failed to create Shader Module!")
+      .expect("Failed to create shader module")
   }
 }
-
-mod compute;
-mod triangle;
-pub use compute::ComputeShaders;
-pub use triangle::TriangleShader;

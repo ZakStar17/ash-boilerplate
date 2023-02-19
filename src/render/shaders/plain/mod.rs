@@ -4,15 +4,15 @@ use ash::vk;
 
 use super::load_shader;
 
-const VERT_SHADER_PATH: &'static str = "./assets/shaders/triangle/vert.spv";
-const FRAG_SHADER_PATH: &'static str = "./assets/shaders/triangle/frag.spv";
+const VERT_SHADER_PATH: &'static str = "./assets/shaders/plain/vert.spv";
+const FRAG_SHADER_PATH: &'static str = "./assets/shaders/plain/frag.spv";
 
-pub struct TriangleShader {
+pub struct Shader {
   pub vert: vk::ShaderModule,
   pub frag: vk::ShaderModule,
 }
 
-impl TriangleShader {
+impl Shader {
   pub fn load(device: &ash::Device) -> Self {
     Self {
       vert: load_shader(device, Path::new(VERT_SHADER_PATH)),

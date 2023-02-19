@@ -78,7 +78,7 @@ impl MainCommandBufferPool {
     device.cmd_bind_pipeline(
       command_buffer,
       vk::PipelineBindPoint::GRAPHICS,
-      pipelines.get_graphics(),
+      pipelines.graphics.main,
     );
     let vertex_buffers = [buffers.vertex(), buffers.instance_dest(i)];
     let offsets = [0_u64, 0];
