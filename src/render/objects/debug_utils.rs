@@ -1,4 +1,4 @@
-use ash::{extensions::ext::DebugUtils, vk};
+use ash::vk;
 use log::{debug, error, info, warn};
 use std::{ffi::CStr, os::raw::c_void, ptr};
 
@@ -27,37 +27,47 @@ unsafe extern "system" fn vulkan_debug_utils_callback(
   vk::FALSE
 }
 
-pub fn setup_debug_utils(
-  entry: &ash::Entry,
-  instance: &ash::Instance,
-) -> (DebugUtils, vk::DebugUtilsMessengerEXT) {
-  let debug_utils_loader = DebugUtils::new(entry, instance);
-
-  let create_info = get_debug_messenger_create_info();
-
-  info!("Creating debug utils messenger");
-  let utils_messenger = unsafe {
-    debug_utils_loader
-      .create_debug_utils_messenger(&create_info, None)
-      .expect("Failed to create debug utils")
-  };
-
-  (debug_utils_loader, utils_messenger)
+pub struct DebugUtils {
+  loader: ash::extensions::ext::DebugUtils,
+  messenger: vk::DebugUtilsMessengerEXT,
 }
 
-pub fn get_debug_messenger_create_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
-  vk::DebugUtilsMessengerCreateInfoEXT {
-    s_type: vk::StructureType::DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-    p_next: ptr::null(),
-    flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
-    message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-      | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-      | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-      | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
-    message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-      | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
-      | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
-    pfn_user_callback: Some(vulkan_debug_utils_callback),
-    p_user_data: ptr::null_mut(),
+impl DebugUtils {
+  pub fn setup(entry: &ash::Entry, instance: &ash::Instance) -> Self {
+    let loader = ash::extensions::ext::DebugUtils::new(entry, instance);
+
+    let create_info = Self::get_debug_messenger_create_info();
+
+    info!("Creating debug utils messenger");
+    let messenger = unsafe {
+      loader
+        .create_debug_utils_messenger(&create_info, None)
+        .expect("Failed to create debug utils")
+    };
+
+    Self { loader, messenger }
+  }
+
+  pub fn get_debug_messenger_create_info() -> vk::DebugUtilsMessengerCreateInfoEXT {
+    vk::DebugUtilsMessengerCreateInfoEXT {
+      s_type: vk::StructureType::DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+      p_next: ptr::null(),
+      flags: vk::DebugUtilsMessengerCreateFlagsEXT::empty(),
+      message_severity: vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+        | vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+        | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
+        | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+      message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
+      pfn_user_callback: Some(vulkan_debug_utils_callback),
+      p_user_data: ptr::null_mut(),
+    }
+  }
+
+  pub unsafe fn destroy_self(&mut self) {
+    self
+      .loader
+      .destroy_debug_utils_messenger(self.messenger, None);
   }
 }

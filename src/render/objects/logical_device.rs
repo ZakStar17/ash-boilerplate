@@ -28,7 +28,7 @@ pub fn create_logical_device(
   device_features: &vk::PhysicalDeviceFeatures,
   device_extensions: &[String],
   family_indices: &QueueFamilyIndices,
-  validation_layers: &Vec<*const c_char>,
+  validation_layers: Option<&Vec<CString>>,
 ) -> (ash::Device, Queues) {
   let mut unique_queue_families = vec![family_indices.graphics, family_indices.compute];
   if let Some(transfer) = family_indices.transfer {
@@ -46,17 +46,34 @@ pub fn create_logical_device(
   let device_extensions_pointers: Vec<*const c_char> =
     device_extensions_c.iter().map(|s| s.as_ptr()).collect();
 
-  let create_info = vk::DeviceCreateInfo {
+  // I wonder how could have I make this work without invalidating the pointer at the end
+  // let pointer = if let Some(pointers) = layer_pointers {
+  //   pointers.as_ptr()
+  // } else {
+  //   ptr::null()
+  // };
+
+  let mut create_info = vk::DeviceCreateInfo {
     s_type: vk::StructureType::DEVICE_CREATE_INFO,
     p_queue_create_infos: queues_create_info.as_ptr(),
     queue_create_info_count: queues_create_info.len() as u32,
     p_enabled_features: &*device_features,
     p_next: ptr::null(),
-    pp_enabled_layer_names: validation_layers.as_ptr(),
-    enabled_layer_count: validation_layers.len() as u32,
+    pp_enabled_layer_names: ptr::null(),
+    enabled_layer_count: 0,
     pp_enabled_extension_names: device_extensions_pointers.as_ptr(),
     enabled_extension_count: device_extensions_pointers.len() as u32,
     flags: vk::DeviceCreateFlags::empty(),
+  };
+
+  // should be valid until after device creation
+  let _layer_pointers = if let Some(layers) = validation_layers {
+    let layer_pointers: Vec<*const c_char> = layers.iter().map(|name| name.as_ptr()).collect();
+    create_info.pp_enabled_layer_names = layer_pointers.as_ptr();
+    create_info.enabled_layer_count = layer_pointers.len() as u32;
+    Some(layer_pointers)
+  } else {
+    None
   };
 
   info!("Creating logical device");

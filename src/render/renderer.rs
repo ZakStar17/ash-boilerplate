@@ -1,11 +1,11 @@
-use std::{ffi::CString, os::raw::c_char};
+use std::ffi::CString;
 
 use super::{
   objects::{
-    self, Buffers, CommandBufferPools, DescriptorSets, Pipelines, QueueFamilyIndices, Queues,
-    SquareInstance, Swapchains, Vertex,
+    self, Buffers, CommandBufferPools, DebugUtils, DescriptorSets, Pipelines, QueueFamilyIndices,
+    Queues, SquareInstance, Swapchains, Vertex,
   },
-  VALIDATION_LAYERS,
+  ENABLE_VALIDATION_LAYERS, VALIDATION_LAYERS,
 };
 use crate::{INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH, WINDOW_TITLE};
 use ash::vk;
@@ -38,8 +38,7 @@ pub struct Renderer {
   _entry: ash::Entry,
   pub window: Window,
   instance: ash::Instance,
-  debug_utils_loader: ash::extensions::ext::DebugUtils,
-  debug_messenger: vk::DebugUtilsMessengerEXT,
+  debug_utils: Option<DebugUtils>,
   physical_device: vk::PhysicalDevice,
   _queue_family_indices: QueueFamilyIndices,
   pub device: ash::Device,
@@ -60,18 +59,26 @@ impl Renderer {
     // init vulkan stuff
     let entry = unsafe { ash::Entry::load().unwrap() };
 
-    check_validation_layers_support(&entry)
-      .unwrap_or_else(|name| panic!("The validation layer \"{name}\" was not found"));
-    let validation_layers: Vec<std::ffi::CString> = VALIDATION_LAYERS
-      .iter()
-      .map(|name| CString::new(*name).unwrap())
-      .collect();
-    let validation_layers: Vec<*const c_char> =
-      validation_layers.iter().map(|name| name.as_ptr()).collect();
+    let validation_layers: Option<Vec<std::ffi::CString>> = if ENABLE_VALIDATION_LAYERS {
+      check_validation_layers_support(&entry)
+        .unwrap_or_else(|name| panic!("The validation layer \"{name}\" was not found"));
+      Some(
+        VALIDATION_LAYERS
+          .iter()
+          .map(|name| CString::new(*name).unwrap())
+          .collect(),
+      )
+    } else {
+      None
+    };
 
     let window = Self::init_window(event_loop);
-    let instance = objects::create_instance(&entry, &window, &validation_layers);
-    let (debug_utils_loader, debug_messenger) = objects::setup_debug_utils(&entry, &instance);
+    let instance = objects::create_instance(&entry, &window, validation_layers.as_ref());
+    let debug_utils = if validation_layers != None {
+      Some(DebugUtils::setup(&entry, &instance))
+    } else {
+      None
+    };
 
     let (surface, surface_loader) = objects::create_surface(&entry, &instance, &window);
 
@@ -92,7 +99,7 @@ impl Renderer {
       &device_features,
       &device_extensions,
       &queue_family_indices,
-      &validation_layers,
+      validation_layers.as_ref(),
     );
 
     let swapchains = Swapchains::new(
@@ -142,8 +149,7 @@ impl Renderer {
       _entry: entry,
       window,
       instance,
-      debug_utils_loader,
-      debug_messenger,
+      debug_utils,
       physical_device,
       _queue_family_indices: queue_family_indices,
       device: logical_device,
@@ -253,11 +259,9 @@ impl Renderer {
         self.device.destroy_render_pass(self.render_pass, None);
         self.render_pass = objects::create_render_pass(&self.device, self.swapchains.get_format());
       }
-      self.pipelines.recreate_main(
-        &self.device,
-        self.swapchains.get_extent(),
-        self.render_pass,
-      );
+      self
+        .pipelines
+        .recreate_main(&self.device, self.swapchains.get_extent(), self.render_pass);
     }
     // kill retired swapchain
     self.swapchains.destroy_old(&self.device);
@@ -294,9 +298,9 @@ impl Drop for Renderer {
       self.swapchains.destroy_self(&self.device);
       self.device.destroy_device(None);
       self.surface_loader.destroy_surface(self.surface, None);
-      self
-        .debug_utils_loader
-        .destroy_debug_utils_messenger(self.debug_messenger, None);
+      if let Some(utils) = &mut self.debug_utils {
+        utils.destroy_self();
+      }
       self.instance.destroy_instance(None);
     }
   }

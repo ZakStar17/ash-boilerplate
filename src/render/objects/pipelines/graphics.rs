@@ -2,7 +2,10 @@ use std::{ffi::CString, ptr};
 
 use ash::vk;
 
-use crate::render::{objects::{SquareInstance, Vertex}, shaders};
+use crate::render::{
+  objects::{SquareInstance, Vertex},
+  shaders,
+};
 
 pub struct GraphicsPipelines {
   pub layout: vk::PipelineLayout,

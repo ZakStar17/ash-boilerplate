@@ -16,7 +16,7 @@ mod vertex;
 
 pub use buffers::Buffers;
 pub use command_buffer_pools::CommandBufferPools;
-pub use debug_utils::setup_debug_utils;
+pub use debug_utils::DebugUtils;
 pub use descriptor_sets::DescriptorSets;
 pub use framebuffers::create_framebuffers;
 pub use instance::create_instance;
