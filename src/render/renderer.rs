@@ -55,7 +55,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-  pub fn new(event_loop: &EventLoop<()>, instances_len: u64) -> Self {
+  pub fn new(event_loop: &EventLoop<()>, max_instance_amount: u64) -> Self {
     // init vulkan stuff
     let entry = unsafe { ash::Entry::load().unwrap() };
 
@@ -142,7 +142,7 @@ impl Renderer {
       &mut command_buffer_pools,
       &vertices,
       &indices,
-      instances_len,
+      max_instance_amount,
     );
 
     Self {
@@ -204,6 +204,11 @@ impl Renderer {
       &self.descriptor_sets,
       instance_count,
     )
+  }
+
+  pub fn get_aspect_ratio(&self) -> f32 {
+    let window_size = self.window.inner_size();
+    window_size.width as f32 / window_size.height as f32
   }
 
   pub unsafe fn update_instance_data(&mut self, i: usize, data: &Vec<SquareInstance>) {

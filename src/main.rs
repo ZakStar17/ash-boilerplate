@@ -1,12 +1,13 @@
 mod app;
+mod keys;
 mod render;
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use app::App;
 use log::{debug, info};
 use winit::{
-  event::{Event, KeyboardInput, WindowEvent},
+  event::{Event, KeyboardInput, MouseScrollDelta, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
 };
 
@@ -24,6 +25,7 @@ pub const GPU_PRINT_INTERVAL: Duration = Duration::from_millis(5000);
 
 pub fn main_loop(event_loop: EventLoop<()>, mut app: App) {
   let mut application_paused = false;
+  let mut last_frame_instant = Instant::now();
   event_loop.run(move |event, _, control_flow| match event {
     Event::Suspended => {
       debug!("Application suspended");
@@ -57,6 +59,20 @@ pub fn main_loop(event_loop: EventLoop<()>, mut app: App) {
           app.handle_window_resize();
         }
       }
+      WindowEvent::CursorMoved { position, .. } => {
+        app.handle_cursor_moved(position);
+      }
+      WindowEvent::MouseWheel { delta, .. } => {
+        if let MouseScrollDelta::LineDelta(_, y) = delta {
+          app.handle_mouse_wheel(y);
+        }
+      }
+      WindowEvent::CursorLeft { .. } => {
+        app.handle_cursor_left_window();
+      }
+      WindowEvent::CursorEntered { .. } => {
+        app.handle_cursor_entered_window();
+      }
       _ => {}
     },
     Event::MainEventsCleared => {
@@ -64,7 +80,9 @@ pub fn main_loop(event_loop: EventLoop<()>, mut app: App) {
     }
     Event::RedrawRequested(_window_id) => {
       if !application_paused {
-        app.render_next_frame();
+        let now = Instant::now();
+        app.render_next_frame(now - last_frame_instant);
+        last_frame_instant = now;
       }
     }
     _ => (),
