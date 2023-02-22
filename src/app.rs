@@ -1,16 +1,22 @@
+use std::time::Duration;
+
 use rand::Rng;
 use winit::{
   event::{ElementState, VirtualKeyCode},
   event_loop::EventLoop,
 };
 
-use crate::render::{SquareInstance, SyncRender};
+use crate::{
+  keys::Keys,
+  render::{SquareInstance, SyncRender},
+};
 
 const MAX_SQUARE_AMMOUNT: usize = 8;
 
 pub struct App {
   render: SyncRender,
   squares: Vec<SquareInstance>,
+  keys: Keys,
 }
 
 impl App {
@@ -18,27 +24,34 @@ impl App {
     let squares = vec![SquareInstance::new([-0.5, -0.5], 0.2)];
     let render = SyncRender::initialize(event_loop, MAX_SQUARE_AMMOUNT as u64);
 
-    Self { render, squares }
+    Self {
+      render,
+      squares,
+      keys: Keys::new(),
+    }
   }
 
   pub fn handle_key_event(&mut self, keycode: Option<VirtualKeyCode>, state: ElementState) -> bool {
-    match (keycode, state) {
-      (Some(VirtualKeyCode::Escape), ElementState::Pressed) => {
-        return true;
-      }
-      (Some(VirtualKeyCode::Space), ElementState::Released) => {
-        if self.squares.len() < MAX_SQUARE_AMMOUNT {
-          let mut rng = rand::thread_rng();
-          self.squares.push(SquareInstance::new(
-            [rng.gen::<f32>() - 0.5, rng.gen::<f32>() - 0.5],
-            rng.gen::<f32>() * 0.5,
-          ));
-        } else {
-          println!("Max square ammount reached");
+    if let Some(code) = keycode {
+      self.keys.update_from_event(code, state);
+      match (code, state) {
+        (VirtualKeyCode::Escape, ElementState::Pressed) => {
+          return true;
         }
-      }
-      _ => {}
-    };
+        (VirtualKeyCode::Q, ElementState::Released) => {
+          if self.squares.len() < MAX_SQUARE_AMMOUNT {
+            let mut rng = rand::thread_rng();
+            self.squares.push(SquareInstance::new(
+              [rng.gen::<f32>() - 0.5, rng.gen::<f32>() - 0.5],
+              rng.gen::<f32>() * 0.5,
+            ));
+          } else {
+            println!("Max square ammount reached");
+          }
+        }
+        _ => {}
+      };
+    }
     false
   }
 
@@ -50,7 +63,7 @@ impl App {
     self.render.request_redraw()
   }
 
-  pub fn render_next_frame(&mut self) {
-    self.render.render_next_frame(&self.squares);
+  pub fn render_next_frame(&mut self, duration_since_last_frame: Duration) {
+    self.render.render_next_frame(&duration_since_last_frame, &self.squares);
   }
 }

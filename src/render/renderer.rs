@@ -55,7 +55,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-  pub fn new(event_loop: &EventLoop<()>, instances_len: u64) -> Self {
+  pub fn new(event_loop: &EventLoop<()>, max_instance_amount: u64) -> Self {
     // init vulkan stuff
     let entry = unsafe { ash::Entry::load().unwrap() };
 
@@ -142,7 +142,7 @@ impl Renderer {
       &mut command_buffer_pools,
       &vertices,
       &indices,
-      instances_len,
+      max_instance_amount,
     );
 
     Self {

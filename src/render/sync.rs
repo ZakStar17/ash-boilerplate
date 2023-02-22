@@ -74,27 +74,22 @@ impl Frame {
 }
 
 struct FPSCounter {
-  prev_frame_time: Instant,
   last_print_elapsed_time: Duration,
 }
 
 impl FPSCounter {
   pub fn new() -> Self {
     Self {
-      prev_frame_time: Instant::now(),
       last_print_elapsed_time: Duration::from_millis(0),
     }
   }
 
-  pub fn try_print(&mut self) {
-    let current = Instant::now();
-    let elapsed = current - self.prev_frame_time;
-    self.last_print_elapsed_time += elapsed;
+  pub fn try_print(&mut self, time_passed: &Duration) {
+    self.last_print_elapsed_time += *time_passed;
     if self.last_print_elapsed_time > FPS_PRINT_INTERVAL {
-      info!("Current fps: {}", 1000000.0 / (elapsed.as_micros() as f64));
+      info!("Current fps: {}", 1000000.0 / (time_passed.as_micros() as f64));
       self.last_print_elapsed_time -= FPS_PRINT_INTERVAL;
     }
-    self.prev_frame_time = current;
   }
 }
 
@@ -142,8 +137,8 @@ pub struct SyncRender {
 }
 
 impl SyncRender {
-  pub fn initialize(event_loop: &EventLoop<()>, squares_len: u64) -> Self {
-    let renderer = Renderer::new(event_loop, squares_len);
+  pub fn initialize(event_loop: &EventLoop<()>, max_square_amount: u64) -> Self {
+    let renderer = Renderer::new(event_loop, max_square_amount);
     let frames = vec![Frame::new(&renderer.device), Frame::new(&renderer.device)];
 
     let fps_counter = if PRINT_FPS {
@@ -172,7 +167,7 @@ impl SyncRender {
     self.recreate_swapchain_next_frame = true;
   }
 
-  pub fn render_next_frame(&mut self, squares: &Vec<SquareInstance>) {
+  pub fn render_next_frame(&mut self, time_since_last_frame: &Duration, squares: &Vec<SquareInstance>) {
     // cpu "intensive" operations
     // std::thread::sleep(std::time::Duration::from_millis(100));
 
@@ -181,9 +176,9 @@ impl SyncRender {
     let last_frame = &self.frames[self.last_in_use_i];
 
     if self.recreate_swapchain_next_frame {
-      // WARNING: quite confusing
-
-      // recreate swapchain - this function waits for last frame fence
+      // recreate swapchain - this function currently waits for last frame
+      // TODO: implement old swapchain functionality so that rendering doesn't
+      // stop during swapchain recreation
       unsafe {
         self.renderer.recreate_swapchain(last_frame.finished);
       }
@@ -220,7 +215,7 @@ impl SyncRender {
     if PRINT_FPS {
       // unecessary if
       if let Some(counter) = &mut self.fps_counter {
-        counter.try_print();
+        counter.try_print(time_since_last_frame);
       }
     }
 
@@ -237,7 +232,6 @@ impl SyncRender {
           .renderer
           .recreate_swapchain(self.frames[self.last_in_use_i].finished);
 
-        // acquiring an image from the new swapchain shoudn't give any problems, I think?
         let (image_index, new_suboptimal) = self
           .renderer
           .acquire_next_image(cur_frame.image_available)
@@ -273,7 +267,7 @@ impl SyncRender {
     let submit_infos = [vk::SubmitInfo {
       s_type: vk::StructureType::SUBMIT_INFO,
       p_next: ptr::null(),
-      wait_semaphore_count: 0,
+      wait_semaphore_count: wait_semaphores.len() as u32, ,
       p_wait_semaphores: wait_semaphores.as_ptr(),
       p_wait_dst_stage_mask: wait_stages.as_ptr(),
       command_buffer_count: 1,
