@@ -9,7 +9,7 @@ use winit::event_loop::EventLoop;
 
 use crate::{FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT};
 
-use super::{renderer::Renderer, SquareInstance};
+use super::{objects::CameraPos, renderer::Renderer, SquareInstance};
 
 // only 2 will work
 pub const FRAMES_IN_FLIGHT: usize = 2;
@@ -87,7 +87,10 @@ impl FPSCounter {
   pub fn try_print(&mut self, time_passed: &Duration) {
     self.last_print_elapsed_time += *time_passed;
     if self.last_print_elapsed_time > FPS_PRINT_INTERVAL {
-      info!("Current fps: {}", 1000000.0 / (time_passed.as_micros() as f64));
+      info!(
+        "Current fps: {}",
+        1000000.0 / (time_passed.as_micros() as f64)
+      );
       self.last_print_elapsed_time -= FPS_PRINT_INTERVAL;
     }
   }
@@ -167,7 +170,12 @@ impl SyncRender {
     self.recreate_swapchain_next_frame = true;
   }
 
-  pub fn render_next_frame(&mut self, time_since_last_frame: &Duration, squares: &Vec<SquareInstance>) {
+  pub fn render_next_frame(
+    &mut self,
+    time_since_last_frame: &Duration,
+    squares: &Vec<SquareInstance>,
+    camera_pos: &CameraPos
+  ) {
     // cpu "intensive" operations
     // std::thread::sleep(std::time::Duration::from_millis(100));
 
@@ -255,9 +263,11 @@ impl SyncRender {
         .renderer
         .update_instance_compute_descriptor_set(cur_frame_i, squares.len() as u64);
       self.renderer.update_instance_data(cur_frame_i, squares);
-      self
-        .renderer
-        .record_instance_compute_command_buffer(cur_frame_i, squares.len() as u32);
+      self.renderer.record_instance_compute_command_buffer(
+        cur_frame_i,
+        squares.len() as u32,
+        camera_pos
+      );
     }
 
     // compute queue submit
@@ -267,7 +277,7 @@ impl SyncRender {
     let submit_infos = [vk::SubmitInfo {
       s_type: vk::StructureType::SUBMIT_INFO,
       p_next: ptr::null(),
-      wait_semaphore_count: wait_semaphores.len() as u32, ,
+      wait_semaphore_count: wait_semaphores.len() as u32,
       p_wait_semaphores: wait_semaphores.as_ptr(),
       p_wait_dst_stage_mask: wait_stages.as_ptr(),
       command_buffer_count: 1,

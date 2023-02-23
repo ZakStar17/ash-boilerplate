@@ -2,7 +2,7 @@ use std::{ffi::CString, ptr};
 
 use ash::vk;
 
-use crate::render::{objects::DescriptorSets, shaders::ComputeShaders};
+use crate::render::{objects::{DescriptorSets, CameraPos}, shaders::ComputeShaders};
 
 pub struct ComputePipelines {
   pub layout: vk::PipelineLayout,
@@ -27,6 +27,11 @@ impl ComputePipelines {
     // TODO:
     // add push constants
 
+    let push_constant_ranges = [vk::PushConstantRange {
+      stage_flags: vk::ShaderStageFlags::COMPUTE,
+      offset: 0,
+      size: std::mem::size_of::<CameraPos>() as u32
+    }];
     let set_layouts = [descriptor_sets.layouts.instance_compute.layout];
     let layout_create_info = vk::PipelineLayoutCreateInfo {
       s_type: vk::StructureType::PIPELINE_LAYOUT_CREATE_INFO,
@@ -34,8 +39,8 @@ impl ComputePipelines {
       flags: vk::PipelineLayoutCreateFlags::empty(),
       set_layout_count: set_layouts.len() as u32,
       p_set_layouts: set_layouts.as_ptr(),
-      push_constant_range_count: 0,
-      p_push_constant_ranges: ptr::null(),
+      push_constant_range_count: push_constant_ranges.len() as u32,
+      p_push_constant_ranges: push_constant_ranges.as_ptr(),
     };
 
     let layout = unsafe {

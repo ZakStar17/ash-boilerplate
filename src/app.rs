@@ -7,27 +7,31 @@ use winit::{
 };
 
 use crate::{
-  keys::Keys,
-  render::{SquareInstance, SyncRender},
+  keys::{Keys, Pressed},
+  render::{SquareInstance, SyncRender, CameraPos},
 };
 
 const MAX_SQUARE_AMMOUNT: usize = 8;
+const CAMERA_SPEED: f32 = 0.4;
 
 pub struct App {
   render: SyncRender,
   squares: Vec<SquareInstance>,
   keys: Keys,
+  camera_pos: CameraPos
 }
 
 impl App {
   pub fn new(event_loop: &EventLoop<()>) -> Self {
     let squares = vec![SquareInstance::new([-0.5, -0.5], 0.2)];
     let render = SyncRender::initialize(event_loop, MAX_SQUARE_AMMOUNT as u64);
+    let camera_pos = CameraPos::new([0.0, 0.0]);
 
     Self {
       render,
       squares,
       keys: Keys::new(),
+      camera_pos
     }
   }
 
@@ -64,6 +68,22 @@ impl App {
   }
 
   pub fn render_next_frame(&mut self, duration_since_last_frame: Duration) {
-    self.render.render_next_frame(&duration_since_last_frame, &self.squares);
+    if self.keys.a ^ self.keys.d {
+      if self.keys.a == Pressed {
+        self.camera_pos.pos[0] -= CAMERA_SPEED * duration_since_last_frame.as_secs_f32();
+      } else {
+        self.camera_pos.pos[0] += CAMERA_SPEED * duration_since_last_frame.as_secs_f32();
+      }
+    }
+    if self.keys.w ^ self.keys.s {
+      if self.keys.w == Pressed {
+        self.camera_pos.pos[1] -= CAMERA_SPEED * duration_since_last_frame.as_secs_f32();
+      } else {
+        self.camera_pos.pos[1] += CAMERA_SPEED * duration_since_last_frame.as_secs_f32();
+      }
+    }
+    self
+      .render
+      .render_next_frame(&duration_since_last_frame, &self.squares, &self.camera_pos);
   }
 }

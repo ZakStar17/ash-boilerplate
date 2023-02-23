@@ -3,7 +3,7 @@ use std::{mem::MaybeUninit, ops::BitOr, ptr};
 use ash::vk;
 
 use crate::render::{
-  objects::{DescriptorSets, Pipelines, QueueFamilyIndices},
+  objects::{CameraPos, DescriptorSets, Pipelines, QueueFamilyIndices},
   sync::FRAMES_IN_FLIGHT,
   utility,
 };
@@ -33,6 +33,7 @@ impl ComputeCommandBufferPool {
     pipelines: &Pipelines,
     descriptor_sets: &DescriptorSets,
     instance_count: u32,
+    camera_pos: &CameraPos,
   ) {
     let cb = self.instance[i];
     device
@@ -49,6 +50,15 @@ impl ComputeCommandBufferPool {
     device
       .begin_command_buffer(cb, &command_buffer_begin_info)
       .expect("Failed to start recording compute instance command buffer");
+
+    let camera_pos_bytes = utility::any_as_u8_slice(camera_pos);
+    device.cmd_push_constants(
+      cb,
+      pipelines.compute.layout,
+      vk::ShaderStageFlags::COMPUTE,
+      0,
+      camera_pos_bytes,
+    );
 
     let sets = [descriptor_sets.pool.instance_compute[i]];
     device.cmd_bind_descriptor_sets(

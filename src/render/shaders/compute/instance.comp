@@ -1,10 +1,9 @@
 #version 450
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
-/* layout(push_constant) uniform PushConstantData { */
-/*   vec2 camera_pos; */
-/* } pc; */
-const vec2 camera_pos = vec2(0.1, 0.1);
+layout(push_constant) uniform PushConstantData {
+  vec2 camera_pos;
+} pc;
 
 struct Input {
   vec2 pos;
@@ -28,6 +27,6 @@ outputData;
 
 void main() {
   uint i = gl_LocalInvocationIndex;
-  outputData.data[i].pos = inputData.data[idx].pos + camera_pos;
-  outputData.data[i].size = inputData.data[idx].size;
+  outputData.data[i].pos = inputData.data[i].pos + pc.camera_pos;
+  outputData.data[i].size = inputData.data[i].size;
 }

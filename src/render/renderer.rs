@@ -2,8 +2,8 @@ use std::ffi::CString;
 
 use super::{
   objects::{
-    self, Buffers, CommandBufferPools, DebugUtils, DescriptorSets, Pipelines, QueueFamilyIndices,
-    Queues, SquareInstance, Swapchains, Vertex,
+    self, Buffers, CameraPos, CommandBufferPools, DebugUtils, DescriptorSets, Pipelines,
+    QueueFamilyIndices, Queues, SquareInstance, Swapchains, Vertex,
   },
   ENABLE_VALIDATION_LAYERS, VALIDATION_LAYERS,
 };
@@ -196,13 +196,19 @@ impl Renderer {
     );
   }
 
-  pub unsafe fn record_instance_compute_command_buffer(&mut self, i: usize, instance_count: u32) {
+  pub unsafe fn record_instance_compute_command_buffer(
+    &mut self,
+    i: usize,
+    instance_count: u32,
+    camera_pos: &CameraPos,
+  ) {
     self.command_buffer_pools.compute.record_instance(
       i,
       &self.device,
       &self.pipelines,
       &self.descriptor_sets,
       instance_count,
+      camera_pos,
     )
   }
 
