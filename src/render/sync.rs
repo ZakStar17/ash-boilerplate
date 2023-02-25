@@ -7,7 +7,7 @@ use ash::vk;
 use log::{info, warn};
 use winit::{dpi::PhysicalPosition, event_loop::EventLoop, window::CursorGrabMode};
 
-use crate::{FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT};
+use crate::{square::Square, FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT};
 
 use super::{
   camera::{Camera, RenderCamera},
@@ -96,7 +96,10 @@ impl FPSCounter {
     let current = Instant::now();
     self.last_print_elapsed_time += *time_passed;
     if self.last_print_elapsed_time > FPS_PRINT_INTERVAL {
-      info!("Current fps: {}", 1000000.0 / (time_passed.as_micros() as f64));
+      info!(
+        "Current fps: {}",
+        1000000.0 / (time_passed.as_micros() as f64)
+      );
       self.last_print_elapsed_time -= FPS_PRINT_INTERVAL;
     }
   }
@@ -144,7 +147,7 @@ pub struct SyncRender {
   gpu_latency_counter: Option<GPULattency>,
   recreate_swapchain_next_frame: bool,
   cursor: Cursor,
-  middle_screen: PhysicalPosition<f32>,
+  middle_screen: PhysicalPosition<f64>,
   pub camera: RenderCamera,
   updated_aspect_ratio: bool,
   delta_zoom: f32,
@@ -170,8 +173,8 @@ impl SyncRender {
     let window_dimensions = renderer.window.inner_size();
     let aspect_ratio = window_dimensions.width as f32 / window_dimensions.height as f32;
     let middle_screen = PhysicalPosition {
-      x: window_dimensions.width as f32 / 2.0,
-      y: window_dimensions.height as f32 / 2.0,
+      x: window_dimensions.width as f64 / 2.0,
+      y: window_dimensions.height as f64 / 2.0,
     };
 
     let camera = RenderCamera::new(camera, INITIAL_CAMERA_FOV, aspect_ratio, CAMERA_SENTIVITY);
@@ -196,17 +199,19 @@ impl SyncRender {
     self.updated_aspect_ratio = true;
     let window_dimensions = self.renderer.window.inner_size();
     self.middle_screen = PhysicalPosition {
-      x: window_dimensions.width as f32 / 2.0,
-      y: window_dimensions.height as f32 / 2.0,
+      x: window_dimensions.width as f64 / 2.0,
+      y: window_dimensions.height as f64 / 2.0,
     };
+    self.cursor.delta_x = 0.0;
+    self.cursor.delta_y = 0.0;
     self.recreate_swapchain_next_frame = true;
   }
 
   pub fn handle_cursor_moved(&mut self, position: PhysicalPosition<f64>) {
     if self.cursor.getting_grabbed {
       if self.cursor.in_window {
-        self.cursor.delta_x += position.x as f32 - self.middle_screen.x;
-        self.cursor.delta_y += position.y as f32 - self.middle_screen.y;
+        self.cursor.delta_x += position.x - self.middle_screen.x;
+        self.cursor.delta_y += position.y - self.middle_screen.y;
       }
       self
         .renderer
@@ -242,7 +247,7 @@ impl SyncRender {
       .window
       .set_cursor_position(self.middle_screen)
       .unwrap();
-    self.renderer.window.set_cursor_visible(false);
+    // self.renderer.window.set_cursor_visible(false);
     self.cursor.delta_x = 0.0;
     self.cursor.delta_y = 0.0;
   }
@@ -280,7 +285,11 @@ impl SyncRender {
     }
   }
 
-  pub fn render_next_frame(&mut self, time_since_last_frame: &Duration, squares: &Vec<SquareInstance>) {
+  pub fn render_next_frame(&mut self, time_since_last_frame: &Duration, squares: &Vec<Square>) {
+    let s = Duration::from_secs_f32(1.0 / 60.0);
+    if time_since_last_frame < &s {
+      std::thread::sleep(s - *time_since_last_frame);
+    }
     if self.updated_aspect_ratio {
       self
         .camera
@@ -290,11 +299,19 @@ impl SyncRender {
       self.camera.zoom_relative(self.delta_zoom);
       self.delta_zoom = 0.0;
     }
-    if self.cursor.delta_x > 0.0 || self.cursor.delta_y > 0.0 {
-      self.camera.rotate(self.cursor.delta_x, self.cursor.delta_y);
-    }
-    // cpu "intensive" operations
-    // std::thread::sleep(std::time::Duration::from_millis(100));
+    self
+      .camera
+      .rotate(self.cursor.delta_x as f32, self.cursor.delta_y as f32);
+    self.cursor.delta_x = 0.0;
+    self.cursor.delta_y = 0.0;
+
+    // doing this every frame is slow
+    let square_instances: Vec<SquareInstance> = squares
+      .iter()
+      .map(|sq| SquareInstance::new(*sq.model()))
+      .collect();
+
+    //
 
     let cur_frame_i = (self.last_in_use_i + 1) % FRAMES_IN_FLIGHT;
     let cur_frame = &self.frames[cur_frame_i];
@@ -379,10 +396,14 @@ impl SyncRender {
       self
         .renderer
         .update_instance_compute_descriptor_set(cur_frame_i, squares.len() as u64);
-      self.renderer.update_instance_data(cur_frame_i, squares);
       self
         .renderer
-        .record_instance_compute_command_buffer(cur_frame_i, squares.len() as u32);
+        .update_instance_data(cur_frame_i, &square_instances);
+      self.renderer.record_instance_compute_command_buffer(
+        cur_frame_i,
+        squares.len() as u32,
+        &self.camera,
+      );
     }
 
     // compute queue submit

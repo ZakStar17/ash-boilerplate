@@ -1,6 +1,7 @@
 use std::{mem::MaybeUninit, ops::BitOr, ptr};
 
 use ash::vk;
+use cgmath::Matrix4;
 
 use crate::render::{
   objects::{DescriptorSets, Pipelines, QueueFamilyIndices},
@@ -33,6 +34,7 @@ impl ComputeCommandBufferPool {
     pipelines: &Pipelines,
     descriptor_sets: &DescriptorSets,
     instance_count: u32,
+    projection_view: &Matrix4<f32>,
   ) {
     let cb = self.instance[i];
     device
@@ -49,6 +51,15 @@ impl ComputeCommandBufferPool {
     device
       .begin_command_buffer(cb, &command_buffer_begin_info)
       .expect("Failed to start recording compute instance command buffer");
+
+    let projection_view_bytes = utility::any_as_u8_slice(projection_view);
+    device.cmd_push_constants(
+      cb,
+      pipelines.compute.layout,
+      vk::ShaderStageFlags::COMPUTE,
+      0,
+      projection_view_bytes,
+    );
 
     let sets = [descriptor_sets.pool.instance_compute[i]];
     device.cmd_bind_descriptor_sets(

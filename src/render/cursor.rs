@@ -1,6 +1,6 @@
 pub struct Cursor {
-  pub delta_x: f32,
-  pub delta_y: f32,
+  pub delta_x: f64,
+  pub delta_y: f64,
   pub in_window: bool,
   pub getting_grabbed: bool,
 }

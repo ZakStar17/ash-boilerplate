@@ -84,6 +84,14 @@ impl RenderCamera {
     self.camera.position
   }
 
+  pub fn yaw(&mut self) -> f32 {
+    self.camera.yaw
+  }
+
+  pub fn pitch(&mut self) -> f32 {
+    self.camera.pitch
+  }
+
   pub fn view_matrix(&self) -> Matrix4<f32> {
     Matrix4::look_at_rh(self.camera.position, self.camera.position + self.front, UP)
   }
@@ -92,8 +100,8 @@ impl RenderCamera {
     self.projection_matrix = calc_projection_matrix(self.fov, self.aspect_ratio);
   }
 
-  pub fn projection_matrix(&self) -> Matrix4<f32> {
-    self.projection_matrix
+  pub fn projection_matrix(&self) -> &Matrix4<f32> {
+    &self.projection_matrix
   }
 
   pub fn projection_view(&self) -> Matrix4<f32> {
@@ -138,12 +146,12 @@ impl RenderCamera {
 
   pub fn move_up(&mut self, duration: &std::time::Duration) {
     let distance = self.camera.speed * duration.as_secs_f32();
-    self.camera.position += UP * distance;
+    self.camera.position -= UP * distance;
   }
 
   pub fn move_down(&mut self, duration: &std::time::Duration) {
     let distance = self.camera.speed * duration.as_secs_f32();
-    self.camera.position -= UP * distance;
+    self.camera.position += UP * distance;
   }
 }
 

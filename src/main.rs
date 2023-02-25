@@ -1,6 +1,7 @@
 mod app;
 mod keys;
 mod render;
+mod square;
 
 use std::time::{Duration, Instant};
 

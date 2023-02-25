@@ -1,22 +1,21 @@
 use ash::vk;
+use cgmath::Matrix4;
 use memoffset::offset_of;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct SquareInstance {
-  pub pos: [f32; 2],
-  pub size: f32,
+  pub matrix: Matrix4<f32>,
   // see std430 layout rules
   // https://www.oreilly.com/library/view/opengl-programming-guide/9780132748445/app09lev1sec3.html
-  pub _padding: f32,
+  pub _padding: (),
 }
 
 impl SquareInstance {
-  pub fn new(pos: [f32; 2], size: f32) -> Self {
+  pub fn new(matrix: Matrix4<f32>) -> Self {
     Self {
-      pos,
-      size,
-      _padding: 0.0,
+      matrix,
+      _padding: (),
     }
   }
 
@@ -36,14 +35,26 @@ impl SquareInstance {
       vk::VertexInputAttributeDescription {
         location: start_location,
         binding,
-        format: vk::Format::R32G32_SFLOAT,
-        offset: offset_of!(Self, pos) as u32,
+        format: vk::Format::R32G32B32A32_SFLOAT,
+        offset: offset_of!(Self, matrix) as u32 + offset_of!(Matrix4<f32>, x) as u32,
       },
       vk::VertexInputAttributeDescription {
         location: start_location + 1,
         binding,
-        format: vk::Format::R32_SFLOAT,
-        offset: offset_of!(Self, size) as u32,
+        format: vk::Format::R32G32B32A32_SFLOAT,
+        offset: offset_of!(Self, matrix) as u32 + offset_of!(Matrix4<f32>, y) as u32,
+      },
+      vk::VertexInputAttributeDescription {
+        location: start_location + 2,
+        binding,
+        format: vk::Format::R32G32B32A32_SFLOAT,
+        offset: offset_of!(Self, matrix) as u32 + offset_of!(Matrix4<f32>, z) as u32,
+      },
+      vk::VertexInputAttributeDescription {
+        location: start_location + 3,
+        binding,
+        format: vk::Format::R32G32B32A32_SFLOAT,
+        offset: offset_of!(Self, matrix) as u32 + offset_of!(Matrix4<f32>, w) as u32,
       },
     ]
   }

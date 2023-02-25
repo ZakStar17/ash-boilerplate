@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use cgmath::{Euler, Point3, Rad};
 use rand::Rng;
 use winit::{
   dpi::PhysicalPosition,
@@ -9,7 +10,8 @@ use winit::{
 
 use crate::{
   keys::{Keys, Pressed},
-  render::{Camera, SquareInstance, SyncRender},
+  render::{Camera, SyncRender},
+  square::Square,
 };
 
 const MAX_SQUARE_AMOUNT: usize = 8;
@@ -19,13 +21,17 @@ const CAMERA_FAST_SPEED: f32 = 10.0;
 
 pub struct App {
   render: SyncRender,
-  squares: Vec<SquareInstance>,
+  squares: Vec<Square>,
   keys: Keys,
 }
 
 impl App {
   pub fn new(event_loop: &EventLoop<()>) -> Self {
-    let squares = vec![SquareInstance::new([-0.5, -0.5], 0.2)];
+    let squares = vec![Square::from_full(
+      Point3::new(-0.5, -0.5, 0.0),
+      Euler::new(Rad(0.0), Rad(0.0), Rad(0.0)),
+      0.2,
+    )];
     let camera = Camera::new(CAMERA_NORMAL_SPEED);
     let render = SyncRender::initialize(event_loop, camera, MAX_SQUARE_AMOUNT as u64);
 
@@ -46,8 +52,9 @@ impl App {
         (VirtualKeyCode::Q, ElementState::Released) => {
           if self.squares.len() < MAX_SQUARE_AMOUNT {
             let mut rng = rand::thread_rng();
-            self.squares.push(SquareInstance::new(
-              [rng.gen::<f32>() - 0.5, rng.gen::<f32>() - 0.5],
+            self.squares.push(Square::from_full(
+              Point3::new(rng.gen::<f32>() - 0.5, rng.gen::<f32>() - 0.5, 0.0),
+              Euler::new(Rad(0.0), Rad(0.0), Rad(0.0)),
               rng.gen::<f32>() * 0.5,
             ));
           } else {
@@ -121,6 +128,8 @@ impl App {
       }
     }
 
-    self.render.render_next_frame(&duration_since_last_frame, &self.squares);
+    self
+      .render
+      .render_next_frame(&duration_since_last_frame, &self.squares);
   }
 }

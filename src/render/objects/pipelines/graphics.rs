@@ -103,7 +103,7 @@ impl GraphicsPipelines {
       p_next: ptr::null(),
       flags: vk::PipelineRasterizationStateCreateFlags::empty(),
       depth_clamp_enable: vk::FALSE,
-      cull_mode: vk::CullModeFlags::BACK,
+      cull_mode: vk::CullModeFlags::NONE,
       front_face: vk::FrontFace::CLOCKWISE,
       line_width: 1.0,
       polygon_mode: vk::PolygonMode::FILL,
