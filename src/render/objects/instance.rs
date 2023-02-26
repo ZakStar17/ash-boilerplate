@@ -1,19 +1,19 @@
 use ash::vk;
 use log::{debug, info, warn};
 use raw_window_handle::HasRawDisplayHandle;
-use std::{
-  ffi::CString,
-  os::raw::{c_char, c_void},
-  ptr,
-};
+use std::{ffi::CString, ptr};
 use winit::window::Window;
 
 use crate::{render::utility, WINDOW_TITLE};
 
+#[cfg(feature = "vulkan_vl")]
+use std::os::raw::{c_char, c_void};
+
 pub fn create_instance(
   entry: &ash::Entry,
   window: &Window,
-  val_layer_info: &Option<(Vec<*const c_char>, vk::DebugUtilsMessengerCreateInfoEXT)>,
+  #[cfg(feature = "vulkan_vl")] vl_pointers: &Vec<*const c_char>,
+  #[cfg(feature = "vulkan_vl")] debug_create_info: &vk::DebugUtilsMessengerCreateInfoEXT,
 ) -> ash::Instance {
   let app_name = CString::new(WINDOW_TITLE).unwrap();
   let engine_name = CString::new("no engine").unwrap();
@@ -27,40 +27,35 @@ pub fn create_instance(
     p_next: ptr::null(),
   };
 
+  #[allow(unused_mut)]
   let mut required_extensions =
     ash_window::enumerate_required_extensions(window.raw_display_handle())
       .expect("Failed to enumerate window extensions")
       .to_vec();
-  if let Some(_) = val_layer_info {
-    required_extensions.push(ash::extensions::ext::DebugUtils::name().as_ptr());
-  }
+  #[cfg(feature = "vulkan_vl")]
+  required_extensions.push(ash::extensions::ext::DebugUtils::name().as_ptr());
   test_instance_extension_suport(entry, &required_extensions)
     .unwrap_or_else(|ext| panic!("Required instance extension is not available: {ext}"));
 
-  // validation layer pointers should be valid until after instance creation
-  let create_info = if let Some((pointers, debug_create_info)) = val_layer_info {
-    vk::InstanceCreateInfo {
-      s_type: vk::StructureType::INSTANCE_CREATE_INFO,
-      p_next: debug_create_info as *const vk::DebugUtilsMessengerCreateInfoEXT as *const c_void,
-      p_application_info: &app_info,
-      pp_enabled_layer_names: (*pointers).as_ptr(),
-      enabled_layer_count: pointers.len() as u32,
-      pp_enabled_extension_names: required_extensions.as_ptr(),
-      enabled_extension_count: required_extensions.len() as u32,
-      flags: vk::InstanceCreateFlags::empty(),
-    }
-  } else {
-    vk::InstanceCreateInfo {
-      s_type: vk::StructureType::INSTANCE_CREATE_INFO,
-      p_next: ptr::null(),
-      p_application_info: &app_info,
-      pp_enabled_layer_names: ptr::null(),
-      enabled_layer_count: 0,
-      pp_enabled_extension_names: required_extensions.as_ptr(),
-      enabled_extension_count: required_extensions.len() as u32,
-      flags: vk::InstanceCreateFlags::empty(),
-    }
+  #[allow(unused_mut)]
+  let mut create_info = vk::InstanceCreateInfo {
+    s_type: vk::StructureType::INSTANCE_CREATE_INFO,
+    p_next: ptr::null(),
+    p_application_info: &app_info,
+    pp_enabled_layer_names: ptr::null(),
+    enabled_layer_count: 0,
+    pp_enabled_extension_names: required_extensions.as_ptr(),
+    enabled_extension_count: required_extensions.len() as u32,
+    flags: vk::InstanceCreateFlags::empty(),
   };
+
+  #[cfg(feature = "vulkan_vl")]
+  {
+    create_info.p_next =
+      debug_create_info as *const vk::DebugUtilsMessengerCreateInfoEXT as *const c_void;
+    create_info.pp_enabled_layer_names = vl_pointers.as_ptr();
+    create_info.enabled_layer_count = vl_pointers.len() as u32;
+  }
 
   debug!("Creating instance");
   let instance: ash::Instance = unsafe {

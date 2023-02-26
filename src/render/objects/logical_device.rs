@@ -28,7 +28,7 @@ pub fn create_logical_device(
   device_features: &vk::PhysicalDeviceFeatures,
   device_extensions: &[String],
   family_indices: &QueueFamilyIndices,
-  val_layer_info: &Option<(Vec<*const c_char>, vk::DebugUtilsMessengerCreateInfoEXT)>,
+  #[cfg(feature = "vulkan_vl")] vl_pointers: &Vec<*const c_char>,
 ) -> (ash::Device, Queues) {
   let mut unique_queue_families = vec![family_indices.graphics, family_indices.compute];
   if let Some(transfer) = family_indices.transfer {
@@ -46,6 +46,7 @@ pub fn create_logical_device(
   let device_extensions_pointers: Vec<*const c_char> =
     device_extensions_c.iter().map(|s| s.as_ptr()).collect();
 
+  #[allow(unused_mut)]
   let mut create_info = vk::DeviceCreateInfo {
     s_type: vk::StructureType::DEVICE_CREATE_INFO,
     p_queue_create_infos: queues_create_info.as_ptr(),
@@ -59,9 +60,10 @@ pub fn create_logical_device(
     flags: vk::DeviceCreateFlags::empty(),
   };
 
-  if let Some((pointers, _)) = val_layer_info {
-    create_info.pp_enabled_layer_names = pointers.as_ptr();
-    create_info.enabled_layer_count = pointers.len() as u32;
+  #[cfg(feature = "vulkan_vl")]
+  {
+    create_info.pp_enabled_layer_names = vl_pointers.as_ptr();
+    create_info.enabled_layer_count = vl_pointers.len() as u32;
   }
 
   info!("Creating logical device");

@@ -1,17 +1,22 @@
-use std::ffi::{c_char, CStr, CString};
-
 use super::{
   camera::RenderCamera,
   objects::{
-    self, Buffers, CommandBufferPools, DebugUtils, DescriptorSets, Pipelines, QueueFamilyIndices,
-    Queues, SquareInstance, Swapchains, Vertex,
+    self, Buffers, CommandBufferPools, DescriptorSets, Pipelines, QueueFamilyIndices, Queues,
+    SquareInstance, Swapchains, Vertex,
   },
-  DEVICE_EXTENSIONS, VALIDATION_LAYERS,
+  DEVICE_EXTENSIONS,
 };
+
 use crate::{INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH, WINDOW_TITLE};
 use ash::vk;
-use log::info;
 use winit::{event_loop::EventLoop, window::Window};
+
+#[cfg(feature = "vulkan_vl")]
+use super::{objects::DebugUtils, VALIDATION_LAYERS};
+#[cfg(feature = "vulkan_vl")]
+use log::info;
+#[cfg(feature = "vulkan_vl")]
+use std::ffi::{c_char, CStr};
 
 const VERTICES_DATA: [Vertex; 4] = [
   Vertex {
@@ -38,7 +43,8 @@ pub struct Renderer {
   _entry: ash::Entry,
   pub window: Window,
   instance: ash::Instance,
-  debug_utils: Option<DebugUtils>,
+  #[cfg(feature = "vulkan_vl")]
+  debug_utils: DebugUtils,
   physical_device: vk::PhysicalDevice,
   _queue_family_indices: QueueFamilyIndices,
   pub device: ash::Device,
@@ -54,36 +60,64 @@ pub struct Renderer {
   buffers: Buffers,
 }
 
+#[cfg(all(feature = "link_vulkan", feature = "load_vulkan"))]
+compile_error!("Cannot load and link Vulkan at the same time");
+
+#[allow(unreachable_code)]
 unsafe fn get_entry() -> ash::Entry {
   #[cfg(feature = "link_vulkan")]
   return ash::Entry::linked();
   #[cfg(feature = "load_vulkan")]
   return ash::Entry::load().expect("Failed to load entry");
-  panic!("No feature");
+  panic!("No compile feature was included for accessing Vulkan");
+}
+
+#[cfg(feature = "vulkan_vl")]
+fn check_validation_layers_support(entry: &ash::Entry) -> Result<(), &'static CStr> {
+  let properties: Vec<vk::LayerProperties> = entry.enumerate_instance_layer_properties().unwrap();
+  let mut available: Vec<&CStr> = properties
+    .iter()
+    .map(|p| {
+      let i8slice: &[i8] = &p.layer_name;
+      let slice: &[u8] =
+        unsafe { std::slice::from_raw_parts(i8slice.as_ptr() as *const u8, i8slice.len()) };
+      CStr::from_bytes_until_nul(slice).expect("Failed to read system available validation layer")
+    })
+    .collect();
+  available.sort();
+
+  info!("System available validation layers: {:?}", available);
+
+  for name in VALIDATION_LAYERS {
+    if let Err(_) = available.binary_search_by(|&av| av.cmp(name)) {
+      return Err(name);
+    }
+  }
+  Ok(())
 }
 
 impl Renderer {
   pub fn new(event_loop: &EventLoop<()>, max_instance_amount: u64) -> Self {
     let entry: ash::Entry = unsafe { get_entry() };
 
-    let val_layer_info: Option<(Vec<*const c_char>, vk::DebugUtilsMessengerCreateInfoEXT)> =
-      if cfg!(feature = "vulkan_vl") {
-        check_validation_layers_support(&entry)
-          .unwrap_or_else(|name| panic!("The validation layer {:?} was not found", name));
-        let pointers = VALIDATION_LAYERS.iter().map(|name| name.as_ptr()).collect();
-        let debug_create_info = DebugUtils::get_debug_messenger_create_info();
-        Some((pointers, debug_create_info))
-      } else {
-        None
-      };
+    #[cfg(feature = "vulkan_vl")]
+    check_validation_layers_support(&entry)
+      .unwrap_or_else(|name| panic!("The validation layer {:?} was not found", name));
+    #[cfg(feature = "vulkan_vl")]
+    let vl_pointers: Vec<*const c_char> =
+      VALIDATION_LAYERS.iter().map(|name| name.as_ptr()).collect();
+    #[cfg(feature = "vulkan_vl")]
+    let debug_create_info = DebugUtils::get_debug_messenger_create_info();
 
     let window = Self::init_window(event_loop);
-    let instance = objects::create_instance(&entry, &window, &val_layer_info);
-    let debug_utils = if let Some((_, create_info)) = &val_layer_info {
-      Some(DebugUtils::setup(&entry, &instance, *create_info))
-    } else {
-      None
-    };
+
+    #[cfg(feature = "vulkan_vl")]
+    let instance = objects::create_instance(&entry, &window, &vl_pointers, &debug_create_info);
+    #[cfg(not(feature = "vulkan_vl"))]
+    let instance = objects::create_instance(&entry, &window);
+
+    #[cfg(feature = "vulkan_vl")]
+    let debug_utils = DebugUtils::setup(&entry, &instance, debug_create_info);
 
     let (surface, surface_loader) = objects::create_surface(&entry, &instance, &window);
 
@@ -98,13 +132,23 @@ impl Renderer {
         &device_features,
       )
     };
+
+    #[cfg(feature = "vulkan_vl")]
     let (logical_device, queues) = objects::create_logical_device(
       &instance,
       &physical_device,
       &device_features,
       &device_extensions,
       &queue_family_indices,
-      &val_layer_info,
+      &vl_pointers,
+    );
+    #[cfg(not(feature = "vulkan_vl"))]
+    let (logical_device, queues) = objects::create_logical_device(
+      &instance,
+      &physical_device,
+      &device_features,
+      &device_extensions,
+      &queue_family_indices,
     );
 
     let swapchains = Swapchains::new(
@@ -154,6 +198,7 @@ impl Renderer {
       _entry: entry,
       window,
       instance,
+      #[cfg(feature = "vulkan_vl")]
       debug_utils,
       physical_device,
       _queue_family_indices: queue_family_indices,
@@ -314,33 +359,9 @@ impl Drop for Renderer {
       self.swapchains.destroy_self(&self.device);
       self.device.destroy_device(None);
       self.surface_loader.destroy_surface(self.surface, None);
-      if let Some(utils) = &mut self.debug_utils {
-        utils.destroy_self();
-      }
+      #[cfg(feature = "vulkan_vl")]
+      self.debug_utils.destroy_self();
       self.instance.destroy_instance(None);
     }
   }
-}
-
-fn check_validation_layers_support(entry: &ash::Entry) -> Result<(), &'static CStr> {
-  let properties: Vec<vk::LayerProperties> = entry.enumerate_instance_layer_properties().unwrap();
-  let mut available: Vec<&CStr> = properties
-    .iter()
-    .map(|p| {
-      let i8slice: &[i8] = &p.layer_name;
-      let slice: &[u8] =
-        unsafe { std::slice::from_raw_parts(i8slice.as_ptr() as *const u8, i8slice.len()) };
-      CStr::from_bytes_until_nul(slice).expect("Failed to read system available validation layer")
-    })
-    .collect();
-  available.sort();
-
-  info!("System available validation layers: {:?}", available);
-
-  for name in VALIDATION_LAYERS {
-    if let Err(_) = available.binary_search_by(|&av| av.cmp(name)) {
-      return Err(name);
-    }
-  }
-  Ok(())
 }

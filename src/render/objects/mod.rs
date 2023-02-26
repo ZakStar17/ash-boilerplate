@@ -1,5 +1,6 @@
 mod buffers;
 mod command_buffer_pools;
+#[cfg(feature = "vulkan_vl")]
 mod debug_utils;
 mod descriptor_sets;
 mod framebuffers;
@@ -16,6 +17,7 @@ mod vertex;
 
 pub use buffers::Buffers;
 pub use command_buffer_pools::CommandBufferPools;
+#[cfg(feature = "vulkan_vl")]
 pub use debug_utils::DebugUtils;
 pub use descriptor_sets::DescriptorSets;
 pub use framebuffers::create_framebuffers;
