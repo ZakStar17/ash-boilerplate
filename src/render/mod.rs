@@ -15,9 +15,10 @@ macro_rules! cstr {
   }};
 }
 
-pub const ENABLE_VALIDATION_LAYERS: bool = true;
 // validation layers should be valid cstrings (for example, not contain null bytes)
 pub const VALIDATION_LAYERS: [&'static CStr; 1] = [cstr!("VK_LAYER_KHRONOS_validation")];
+
+pub const DEVICE_EXTENSIONS: [&'static str; 1] = ["VK_KHR_swapchain"];
 
 pub use camera::Camera;
 pub use objects::SquareInstance;

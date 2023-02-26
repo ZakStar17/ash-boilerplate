@@ -6,14 +6,12 @@ use super::{
     self, Buffers, CommandBufferPools, DebugUtils, DescriptorSets, Pipelines, QueueFamilyIndices,
     Queues, SquareInstance, Swapchains, Vertex,
   },
-  ENABLE_VALIDATION_LAYERS, VALIDATION_LAYERS,
+  DEVICE_EXTENSIONS, VALIDATION_LAYERS,
 };
 use crate::{INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH, WINDOW_TITLE};
 use ash::vk;
 use log::info;
 use winit::{event_loop::EventLoop, window::Window};
-
-const DEVICE_EXTENSIONS: [&'static str; 1] = ["VK_KHR_swapchain"];
 
 const VERTICES_DATA: [Vertex; 4] = [
   Vertex {
@@ -56,13 +54,20 @@ pub struct Renderer {
   buffers: Buffers,
 }
 
+unsafe fn get_entry() -> ash::Entry {
+  #[cfg(feature = "link_vulkan")]
+  return ash::Entry::linked();
+  #[cfg(feature = "load_vulkan")]
+  return ash::Entry::load().expect("Failed to load entry");
+  panic!("No feature");
+}
+
 impl Renderer {
   pub fn new(event_loop: &EventLoop<()>, max_instance_amount: u64) -> Self {
-    // init vulkan stuff
-    let entry = unsafe { ash::Entry::load().unwrap() };
+    let entry: ash::Entry = unsafe { get_entry() };
 
     let val_layer_info: Option<(Vec<*const c_char>, vk::DebugUtilsMessengerCreateInfoEXT)> =
-      if ENABLE_VALIDATION_LAYERS {
+      if cfg!(feature = "vulkan_vl") {
         check_validation_layers_support(&entry)
           .unwrap_or_else(|name| panic!("The validation layer {:?} was not found", name));
         let pointers = VALIDATION_LAYERS.iter().map(|name| name.as_ptr()).collect();

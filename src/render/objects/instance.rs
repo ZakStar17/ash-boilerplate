@@ -1,5 +1,5 @@
 use ash::vk;
-use log::{info, warn, debug};
+use log::{debug, info, warn};
 use raw_window_handle::HasRawDisplayHandle;
 use std::{
   ffi::CString,
