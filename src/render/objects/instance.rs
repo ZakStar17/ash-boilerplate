@@ -1,5 +1,5 @@
 use ash::vk;
-use log::{info, warn};
+use log::{info, warn, debug};
 use raw_window_handle::HasRawDisplayHandle;
 use std::{
   ffi::CString,
@@ -8,15 +8,12 @@ use std::{
 };
 use winit::window::Window;
 
-use crate::{
-  render::{objects::DebugUtils, utility},
-  WINDOW_TITLE,
-};
+use crate::{render::utility, WINDOW_TITLE};
 
 pub fn create_instance(
   entry: &ash::Entry,
   window: &Window,
-  validation_layers: Option<&Vec<CString>>,
+  val_layer_info: &Option<(Vec<*const c_char>, vk::DebugUtilsMessengerCreateInfoEXT)>,
 ) -> ash::Instance {
   let app_name = CString::new(WINDOW_TITLE).unwrap();
   let engine_name = CString::new("no engine").unwrap();
@@ -34,47 +31,38 @@ pub fn create_instance(
     ash_window::enumerate_required_extensions(window.raw_display_handle())
       .expect("Failed to enumerate window extensions")
       .to_vec();
-  if validation_layers != None {
+  if let Some(_) = val_layer_info {
     required_extensions.push(ash::extensions::ext::DebugUtils::name().as_ptr());
   }
   test_instance_extension_suport(entry, &required_extensions)
     .unwrap_or_else(|ext| panic!("Required instance extension is not available: {ext}"));
 
   // validation layer pointers should be valid until after instance creation
-  let (create_info, _layer_pointers) = if let Some(layers) = validation_layers {
-    let debug_utils_create_info = DebugUtils::get_debug_messenger_create_info();
-    let pointers: Vec<*const c_char> = layers.iter().map(|name| name.as_ptr()).collect();
-    (
-      vk::InstanceCreateInfo {
-        s_type: vk::StructureType::INSTANCE_CREATE_INFO,
-        p_next: &debug_utils_create_info as *const vk::DebugUtilsMessengerCreateInfoEXT
-          as *const c_void,
-        p_application_info: &app_info,
-        pp_enabled_layer_names: pointers.as_ptr(),
-        enabled_layer_count: layers.len() as u32,
-        pp_enabled_extension_names: required_extensions.as_ptr(),
-        enabled_extension_count: required_extensions.len() as u32,
-        flags: vk::InstanceCreateFlags::empty(),
-      },
-      Some(pointers),
-    )
+  let create_info = if let Some((pointers, debug_create_info)) = val_layer_info {
+    vk::InstanceCreateInfo {
+      s_type: vk::StructureType::INSTANCE_CREATE_INFO,
+      p_next: debug_create_info as *const vk::DebugUtilsMessengerCreateInfoEXT as *const c_void,
+      p_application_info: &app_info,
+      pp_enabled_layer_names: (*pointers).as_ptr(),
+      enabled_layer_count: pointers.len() as u32,
+      pp_enabled_extension_names: required_extensions.as_ptr(),
+      enabled_extension_count: required_extensions.len() as u32,
+      flags: vk::InstanceCreateFlags::empty(),
+    }
   } else {
-    (
-      vk::InstanceCreateInfo {
-        s_type: vk::StructureType::INSTANCE_CREATE_INFO,
-        p_next: ptr::null(),
-        p_application_info: &app_info,
-        pp_enabled_layer_names: ptr::null(),
-        enabled_layer_count: 0,
-        pp_enabled_extension_names: required_extensions.as_ptr(),
-        enabled_extension_count: required_extensions.len() as u32,
-        flags: vk::InstanceCreateFlags::empty(),
-      },
-      None,
-    )
+    vk::InstanceCreateInfo {
+      s_type: vk::StructureType::INSTANCE_CREATE_INFO,
+      p_next: ptr::null(),
+      p_application_info: &app_info,
+      pp_enabled_layer_names: ptr::null(),
+      enabled_layer_count: 0,
+      pp_enabled_extension_names: required_extensions.as_ptr(),
+      enabled_extension_count: required_extensions.len() as u32,
+      flags: vk::InstanceCreateFlags::empty(),
+    }
   };
 
-  info!("Creating instance");
+  debug!("Creating instance");
   let instance: ash::Instance = unsafe {
     entry
       .create_instance(&create_info, None)

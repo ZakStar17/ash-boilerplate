@@ -93,7 +93,6 @@ impl FPSCounter {
   }
 
   pub fn try_print(&mut self, time_passed: &Duration) {
-    let current = Instant::now();
     self.last_print_elapsed_time += *time_passed;
     if self.last_print_elapsed_time > FPS_PRINT_INTERVAL {
       info!(

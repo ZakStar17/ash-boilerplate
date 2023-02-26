@@ -7,8 +7,17 @@ mod shaders;
 mod sync;
 mod utility;
 
+use std::ffi::CStr;
+
+macro_rules! cstr {
+  ( $s:literal ) => {{
+    unsafe { std::mem::transmute::<_, &CStr>(concat!($s, "\0")) }
+  }};
+}
+
 pub const ENABLE_VALIDATION_LAYERS: bool = true;
-pub const VALIDATION_LAYERS: [&'static str; 1] = ["VK_LAYER_KHRONOS_validation"];
+// validation layers should be valid cstrings (for example, not contain null bytes)
+pub const VALIDATION_LAYERS: [&'static CStr; 1] = [cstr!("VK_LAYER_KHRONOS_validation")];
 
 pub use camera::Camera;
 pub use objects::SquareInstance;

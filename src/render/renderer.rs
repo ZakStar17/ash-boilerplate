@@ -1,4 +1,4 @@
-use std::ffi::CString;
+use std::ffi::{c_char, CStr, CString};
 
 use super::{
   camera::RenderCamera,
@@ -10,6 +10,7 @@ use super::{
 };
 use crate::{INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH, WINDOW_TITLE};
 use ash::vk;
+use log::info;
 use winit::{event_loop::EventLoop, window::Window};
 
 const DEVICE_EXTENSIONS: [&'static str; 1] = ["VK_KHR_swapchain"];
@@ -60,23 +61,21 @@ impl Renderer {
     // init vulkan stuff
     let entry = unsafe { ash::Entry::load().unwrap() };
 
-    let validation_layers: Option<Vec<std::ffi::CString>> = if ENABLE_VALIDATION_LAYERS {
-      check_validation_layers_support(&entry)
-        .unwrap_or_else(|name| panic!("The validation layer \"{name}\" was not found"));
-      Some(
-        VALIDATION_LAYERS
-          .iter()
-          .map(|name| CString::new(*name).unwrap())
-          .collect(),
-      )
-    } else {
-      None
-    };
+    let val_layer_info: Option<(Vec<*const c_char>, vk::DebugUtilsMessengerCreateInfoEXT)> =
+      if ENABLE_VALIDATION_LAYERS {
+        check_validation_layers_support(&entry)
+          .unwrap_or_else(|name| panic!("The validation layer {:?} was not found", name));
+        let pointers = VALIDATION_LAYERS.iter().map(|name| name.as_ptr()).collect();
+        let debug_create_info = DebugUtils::get_debug_messenger_create_info();
+        Some((pointers, debug_create_info))
+      } else {
+        None
+      };
 
     let window = Self::init_window(event_loop);
-    let instance = objects::create_instance(&entry, &window, validation_layers.as_ref());
-    let debug_utils = if validation_layers != None {
-      Some(DebugUtils::setup(&entry, &instance))
+    let instance = objects::create_instance(&entry, &window, &val_layer_info);
+    let debug_utils = if let Some((_, create_info)) = &val_layer_info {
+      Some(DebugUtils::setup(&entry, &instance, *create_info))
     } else {
       None
     };
@@ -100,7 +99,7 @@ impl Renderer {
       &device_features,
       &device_extensions,
       &queue_family_indices,
-      validation_layers.as_ref(),
+      &val_layer_info,
     );
 
     let swapchains = Swapchains::new(
@@ -318,21 +317,23 @@ impl Drop for Renderer {
   }
 }
 
-fn check_validation_layers_support(entry: &ash::Entry) -> Result<(), &'static str> {
-  let mut available: Vec<&str> = entry
-    .enumerate_instance_layer_properties()
-    .unwrap()
+fn check_validation_layers_support(entry: &ash::Entry) -> Result<(), &'static CStr> {
+  let properties: Vec<vk::LayerProperties> = entry.enumerate_instance_layer_properties().unwrap();
+  let mut available: Vec<&CStr> = properties
     .iter()
-    .map(|x| {
-      let rust_id = unsafe { std::ffi::CStr::from_ptr(x.layer_name.as_ptr()) };
-      // println!("{:?}", rust_id);  // print installed validation layer names
-      rust_id.to_str().unwrap()
+    .map(|p| {
+      let i8slice: &[i8] = &p.layer_name;
+      let slice: &[u8] =
+        unsafe { std::slice::from_raw_parts(i8slice.as_ptr() as *const u8, i8slice.len()) };
+      CStr::from_bytes_until_nul(slice).expect("Failed to read system available validation layer")
     })
     .collect();
   available.sort();
 
+  info!("System available validation layers: {:?}", available);
+
   for name in VALIDATION_LAYERS {
-    if let Err(_) = available.binary_search(&name) {
+    if let Err(_) = available.binary_search_by(|&av| av.cmp(name)) {
       return Err(name);
     }
   }
