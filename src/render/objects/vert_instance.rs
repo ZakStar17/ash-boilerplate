@@ -4,14 +4,14 @@ use memoffset::offset_of;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
-pub struct SquareInstance {
+pub struct MatrixInstance {
   pub matrix: Matrix4<f32>,
   // see std430 layout rules
   // https://www.oreilly.com/library/view/opengl-programming-guide/9780132748445/app09lev1sec3.html
   pub _padding: (),
 }
 
-impl SquareInstance {
+impl MatrixInstance {
   pub fn new(matrix: Matrix4<f32>) -> Self {
     Self {
       matrix,

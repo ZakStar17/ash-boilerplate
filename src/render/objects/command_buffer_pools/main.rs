@@ -31,8 +31,6 @@ impl MainCommandBufferPool {
     surface_extent: vk::Extent2D,
     pipelines: &Pipelines,
     buffers: &Buffers,
-    indices_len: u32,
-    instance_count: u32,
   ) {
     let command_buffer = self.command_buffers[i];
 
@@ -80,12 +78,24 @@ impl MainCommandBufferPool {
       vk::PipelineBindPoint::GRAPHICS,
       pipelines.graphics.main,
     );
-    let vertex_buffers = [buffers.vertex(), buffers.instance_dest(i)];
+    let vertex_buffers = [buffers.local_constant.vertex(), buffers.instance_dest(i)];
     let offsets = [0_u64, 0];
 
     device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &offsets);
     device.cmd_bind_index_buffer(command_buffer, buffers.index(), 0, vk::IndexType::UINT16);
-    device.cmd_draw_indexed(command_buffer, indices_len, instance_count, 0, 0, 0);
+
+    for draw in buffers
+
+    for (inst_count, model_sizes) in instance_draws {
+      device.cmd_draw_indexed(
+        command_buffer,
+        model_sizes.index_size,
+        inst_count,
+        model_sizes.index_offset,
+        model_sizes.vertex_offset as i32,
+        0,
+      );
+    }
 
     device.cmd_end_render_pass(command_buffer);
 

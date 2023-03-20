@@ -2,8 +2,10 @@
 
 mod app;
 mod keys;
+mod objects;
 mod render;
-mod square;
+mod static_scene;
+mod structures;
 
 use std::time::{Duration, Instant};
 

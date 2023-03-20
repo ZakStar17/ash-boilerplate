@@ -1,8 +1,9 @@
 use super::{
   camera::RenderCamera,
+  models::Models,
   objects::{
     self, Buffers, CommandBufferPools, DescriptorSets, Pipelines, QueueFamilyIndices, Queues,
-    SquareInstance, Swapchains, Vertex,
+    Swapchains,
   },
   DEVICE_EXTENSIONS,
 };
@@ -17,27 +18,6 @@ use super::{objects::DebugUtils, VALIDATION_LAYERS};
 use log::info;
 #[cfg(feature = "vulkan_vl")]
 use std::ffi::{c_char, CStr};
-
-const VERTICES_DATA: [Vertex; 4] = [
-  Vertex {
-    pos: [-0.5, -0.5],
-    color: [1.0, 0.0, 0.0],
-  },
-  Vertex {
-    pos: [0.5, -0.5],
-    color: [0.0, 1.0, 0.0],
-  },
-  Vertex {
-    pos: [0.5, 0.5],
-    color: [0.0, 0.0, 1.0],
-  },
-  Vertex {
-    pos: [-1.0, 1.0],
-    color: [0.0, 0.0, 0.0],
-  },
-];
-
-const INDICES_DATA: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
 pub struct Renderer {
   _entry: ash::Entry,
@@ -178,8 +158,6 @@ impl Renderer {
       &swapchains.get_extent(),
     );
 
-    let vertices = Vec::from(VERTICES_DATA);
-    let indices = Vec::from(INDICES_DATA);
     let mut command_buffer_pools =
       CommandBufferPools::create(&logical_device, &queue_family_indices);
     let buffers = Buffers::create(
@@ -189,8 +167,6 @@ impl Renderer {
       &queue_family_indices,
       &queues,
       &mut command_buffer_pools,
-      &vertices,
-      &indices,
       max_instance_amount,
     );
 
@@ -241,7 +217,7 @@ impl Renderer {
       self.swapchains.get_extent(),
       &self.pipelines,
       &self.buffers,
-      INDICES_DATA.len() as u32,
+      self.models.index_sizes,
       instances_len,
     );
   }

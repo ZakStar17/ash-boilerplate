@@ -11,7 +11,7 @@ use self::{
   host_writable::HostWritableMemory, local::LocalMemory, local_constant::LocalConstantMemory,
 };
 
-use super::{CommandBufferPools, QueueFamilyIndices, Queues, SquareInstance, Vertex};
+use super::{CommandBufferPools, MatrixInstance, QueueFamilyIndices, Queues};
 
 macro_rules! const_flag_bitor {
     ($t:ty, $x:expr, $($y:expr),+) => {
@@ -24,7 +24,7 @@ macro_rules! const_flag_bitor {
 
 macro_rules! buffer_usage {
     ( $x:expr, $($y:expr),+) => {
-      const_flag_bitor!(vk::BufferUsageFlags, $x, $($y)*)
+      const_flag_bitor!(vk::BufferUsageFlags, $x $(, $y)+)
     };
 }
 
@@ -49,6 +49,11 @@ pub const STORAGE_SRC_USAGE: vk::BufferUsageFlags = buffer_usage!(
 );
 pub const VERTEX_STORAGE_DST_USAGE: vk::BufferUsageFlags =
   buffer_usage!(VERTEX_DST_USAGE, vk::BufferUsageFlags::STORAGE_BUFFER);
+pub const STORAGE_USAGE: vk::BufferUsageFlags = buffer_usage!(
+  vk::BufferUsageFlags::TRANSFER_SRC,
+  vk::BufferUsageFlags::TRANSFER_DST,
+  vk::BufferUsageFlags::STORAGE_BUFFER
+);
 
 pub const INDEX_SRC_USAGE: vk::BufferUsageFlags = buffer_usage!(
   vk::BufferUsageFlags::INDEX_BUFFER,
@@ -69,91 +74,64 @@ pub const LOCAL_MEMORY_PROPERTY_FLAGS: vk::MemoryPropertyFlags = memory_property
   vk::MemoryPropertyFlags::HOST_COHERENT
 );
 
-#[derive(Debug)]
-pub struct SizedBuffer {
-  // Sized, offseted buffer (subject to change)
-  obj: vk::Buffer,
-  pub size: u64,
-  pub offset: u64,
-}
-
-impl SizedBuffer {
-  pub fn new(buffer: vk::Buffer, size: u64, offset: u64) -> Self {
-    Self {
-      obj: buffer,
-      size,
-      offset,
+// returns memory, memory size and offset of each buffer
+fn allocate_vk_buffers(
+  device: &ash::Device,
+  // (buffer data size, buffer)
+  buffers: &Vec<(u64, vk::Buffer)>,
+  mem_properties: vk::PhysicalDeviceMemoryProperties,
+  required_mem_flags: vk::MemoryPropertyFlags,
+) -> (vk::DeviceMemory, u64, Vec<u64>) {
+  let mut buffer_requirements_bits = 0;
+  let mut alignment = 0;
+  let mut full_sizes = Vec::with_capacity(buffers.len());
+  for (_, buffer) in buffers.iter() {
+    let mem_requirements = unsafe { device.get_buffer_memory_requirements(*buffer) };
+    buffer_requirements_bits |= mem_requirements.memory_type_bits;
+    if alignment == 0 {
+      alignment = mem_requirements.alignment;
+    } else {
+      alignment = alignment.lcm(&mem_requirements.alignment);
     }
+    full_sizes.push(mem_requirements.size);
+  }
+  let mut total_size = 0;
+  let mut offsets = Vec::with_capacity(buffers.len());
+  for size in full_sizes.iter() {
+    let size = size + alignment - (size % alignment);
+    offsets.push(total_size);
+    total_size += size;
   }
 
-  fn allocate_vk_buffers(
-    device: &ash::Device,
-    buffers: Vec<(u64, vk::Buffer)>,
-    mem_properties: vk::PhysicalDeviceMemoryProperties,
-    required_mem_flags: vk::MemoryPropertyFlags,
-  ) -> (vk::DeviceMemory, u64, Vec<Self>) {
-    let mut buffer_requirements_bits = 0;
-    let mut alignment = 0;
-    let mut full_sizes = Vec::with_capacity(buffers.len());
-    for (_, buffer) in buffers.iter() {
-      let mem_requirements = unsafe { device.get_buffer_memory_requirements(*buffer) };
-      buffer_requirements_bits |= mem_requirements.memory_type_bits;
-      if alignment == 0 {
-        alignment = mem_requirements.alignment;
-      } else {
-        alignment = alignment.lcm(&mem_requirements.alignment);
-      }
-      full_sizes.push(mem_requirements.size);
-    }
-    let mut total_size = 0;
-    let mut offsets = Vec::with_capacity(buffers.len());
-    for size in full_sizes.iter() {
-      let size = size + alignment - (size % alignment);
-      offsets.push(total_size);
-      total_size += size;
-    }
+  let memory_type = find_memory_type(buffer_requirements_bits, required_mem_flags, mem_properties);
 
-    let memory_type =
-      find_memory_type(buffer_requirements_bits, required_mem_flags, mem_properties);
+  let allocate_info = vk::MemoryAllocateInfo {
+    s_type: vk::StructureType::MEMORY_ALLOCATE_INFO,
+    p_next: ptr::null(),
+    allocation_size: total_size,
+    memory_type_index: memory_type,
+  };
 
-    let allocate_info = vk::MemoryAllocateInfo {
-      s_type: vk::StructureType::MEMORY_ALLOCATE_INFO,
-      p_next: ptr::null(),
-      allocation_size: total_size,
-      memory_type_index: memory_type,
-    };
-
-    let buffer_memory = unsafe {
+  let buffer_memory = unsafe {
+    device
+      .allocate_memory(&allocate_info, None)
+      .expect("Failed to allocate vertex buffer memory")
+  };
+  for ((size, buffer), offset) in buffers.iter().zip(offsets.iter()) {
+    unsafe {
       device
-        .allocate_memory(&allocate_info, None)
-        .expect("Failed to allocate vertex buffer memory")
-    };
-    let mut sized_buffers = Vec::with_capacity(buffers.len());
-    for ((size, buffer), offset) in buffers.into_iter().zip(offsets.into_iter()) {
-      unsafe {
-        device
-          .bind_buffer_memory(buffer, buffer_memory, offset)
-          .expect("Failed to bind buffer to its memory");
-      }
-      sized_buffers.push(Self::new(buffer, size, offset));
+        .bind_buffer_memory(*buffer, buffer_memory, *offset)
+        .expect("Failed to bind buffer to its memory");
     }
-
-    (buffer_memory, total_size, sized_buffers)
   }
 
-  pub fn inner(&self) -> vk::Buffer {
-    self.obj
-  }
-
-  pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    device.destroy_buffer(self.obj, None);
-  }
+  (buffer_memory, total_size, offsets)
 }
 
 pub struct Buffers {
-  local_constant_memory: LocalConstantMemory,
-  host_writable: HostWritableMemory,
-  local: LocalMemory,
+  pub local_constant: LocalConstantMemory,
+  pub host_writable: HostWritableMemory,
+  pub local: LocalMemory,
 }
 
 impl Buffers {
@@ -164,22 +142,18 @@ impl Buffers {
     queue_families: &QueueFamilyIndices,
     queues: &Queues,
     command_pools: &mut CommandBufferPools,
-    vertices: &Vec<Vertex>,
-    indices: &Vec<u16>,
     max_instances: u64,
   ) -> Self {
     let memory_properties =
       unsafe { instance.get_physical_device_memory_properties(physical_device) };
 
     Self {
-      local_constant_memory: LocalConstantMemory::new(
+      local_constant: LocalConstantMemory::new(
         device,
         memory_properties,
         queue_families,
         queues,
         command_pools,
-        vertices,
-        indices,
       ),
       host_writable: HostWritableMemory::new(
         device,
@@ -189,14 +163,6 @@ impl Buffers {
       ),
       local: LocalMemory::new(device, memory_properties, queue_families, max_instances),
     }
-  }
-
-  pub fn vertex(&self) -> vk::Buffer {
-    self.local_constant_memory.vertex()
-  }
-
-  pub fn index(&self) -> vk::Buffer {
-    self.local_constant_memory.index()
   }
 
   pub fn instance_source(&self, i: usize) -> vk::Buffer {
@@ -211,13 +177,13 @@ impl Buffers {
     &mut self,
     i: usize,
     device: &ash::Device,
-    data: &Vec<SquareInstance>,
+    data: &Vec<MatrixInstance>,
   ) {
     self.host_writable.write_instance(i, device, data);
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    self.local_constant_memory.destroy_self(device);
+    self.local_constant.destroy_self(device);
     self.host_writable.destroy_self(device);
     self.local.destroy_self(device);
   }

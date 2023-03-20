@@ -3,8 +3,8 @@ use std::{ffi::CString, ptr};
 use ash::vk;
 
 use crate::render::{
-  objects::{SquareInstance, Vertex},
-  shaders,
+  objects::{Vertex},
+  shaders, MatrixInstance,
 };
 
 pub struct GraphicsPipelines {
@@ -47,11 +47,11 @@ impl GraphicsPipelines {
     // convoluted for now
     let binding_descriptions = [
       Vertex::get_binding_description(0),
-      SquareInstance::get_binding_description(1),
+      MatrixInstance::get_binding_description(1),
     ];
     let attribute_descriptions: Vec<vk::VertexInputAttributeDescription> = [
       Vertex::get_attribute_descriptions(0, 0),
-      SquareInstance::get_attribute_descriptions(2, 1),
+      MatrixInstance::get_attribute_descriptions(2, 1),
     ]
     .into_iter()
     .flatten()
@@ -103,7 +103,7 @@ impl GraphicsPipelines {
       p_next: ptr::null(),
       flags: vk::PipelineRasterizationStateCreateFlags::empty(),
       depth_clamp_enable: vk::FALSE,
-      cull_mode: vk::CullModeFlags::NONE,
+      cull_mode: vk::CullModeFlags::BACK,
       front_face: vk::FrontFace::CLOCKWISE,
       line_width: 1.0,
       polygon_mode: vk::PolygonMode::FILL,
