@@ -1,11 +1,11 @@
 use super::{
   camera::RenderCamera,
-  models::Models,
+  models::ModelProperties,
   objects::{
-    self, Buffers, CommandBufferPools, DescriptorSets, Pipelines, QueueFamilyIndices, Queues,
-    Swapchains,
+    self, Buffers, CommandBufferPools, DescriptorSets, InstProperties, Pipelines,
+    QueueFamilyIndices, Queues, Swapchains,
   },
-  DEVICE_EXTENSIONS,
+  MatrixInstance, Models, DEVICE_EXTENSIONS,
 };
 
 use crate::{INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH, WINDOW_TITLE};
@@ -38,6 +38,7 @@ pub struct Renderer {
   framebuffers: Vec<vk::Framebuffer>,
   pub command_buffer_pools: CommandBufferPools,
   buffers: Buffers,
+  model_props: Vec<ModelProperties>,
 }
 
 #[cfg(all(feature = "link_vulkan", feature = "load_vulkan"))]
@@ -77,7 +78,7 @@ fn check_validation_layers_support(entry: &ash::Entry) -> Result<(), &'static CS
 }
 
 impl Renderer {
-  pub fn new(event_loop: &EventLoop<()>, max_instance_amount: u64) -> Self {
+  pub fn new(event_loop: &EventLoop<()>, max_dyn_inst_count: u64) -> Self {
     let entry: ash::Entry = unsafe { get_entry() };
 
     #[cfg(feature = "vulkan_vl")]
@@ -142,7 +143,7 @@ impl Renderer {
 
     let render_pass = objects::create_render_pass(&logical_device, swapchains.get_format());
 
-    let descriptor_sets = DescriptorSets::new(&logical_device);
+    let mut descriptor_sets = DescriptorSets::new(&logical_device);
 
     let pipelines = Pipelines::new(
       &logical_device,
@@ -160,6 +161,7 @@ impl Renderer {
 
     let mut command_buffer_pools =
       CommandBufferPools::create(&logical_device, &queue_family_indices);
+    let models = Models::load();
     let buffers = Buffers::create(
       &instance,
       &logical_device,
@@ -167,8 +169,13 @@ impl Renderer {
       &queue_family_indices,
       &queues,
       &mut command_buffer_pools,
-      max_instance_amount,
+      &models,
+      max_dyn_inst_count,
     );
+
+    descriptor_sets
+      .pool
+      .update_all_inst_static(&logical_device, &buffers);
 
     Self {
       _entry: entry,
@@ -189,6 +196,7 @@ impl Renderer {
       buffers,
       command_buffer_pools,
       descriptor_sets,
+      model_props: models.into_properties(),
     }
   }
 
@@ -207,7 +215,7 @@ impl Renderer {
     &mut self,
     i: usize,
     framebuffer_i: usize,
-    instances_len: u32,
+    dyn_inst_props: &Vec<InstProperties>,
   ) {
     self.command_buffer_pools.main.record(
       i,
@@ -217,24 +225,35 @@ impl Renderer {
       self.swapchains.get_extent(),
       &self.pipelines,
       &self.buffers,
-      self.models.index_sizes,
-      instances_len,
+      &self.model_props,
+      dyn_inst_props,
     );
   }
 
-  pub unsafe fn record_instance_compute_command_buffer(
+  pub unsafe fn record_inst_static_comm_buffer(&mut self, i: usize, camera: &RenderCamera) {
+    self.command_buffer_pools.compute.record_inst_static(
+      i,
+      &self.device,
+      &self.pipelines,
+      &self.buffers,
+      &self.descriptor_sets,
+      &camera.projection_view(),
+    );
+  }
+
+  pub unsafe fn record_inst_dyn_comm_buffer(
     &mut self,
     i: usize,
-    instance_count: u32,
     camera: &RenderCamera,
+    dyn_inst_count: u32,
   ) {
-    self.command_buffer_pools.compute.record_instance(
+    self.command_buffer_pools.compute.record_inst_dyn(
       i,
       &self.device,
       &self.pipelines,
       &self.descriptor_sets,
-      instance_count,
       &camera.projection_view(),
+      dyn_inst_count,
     )
   }
 
@@ -243,7 +262,7 @@ impl Renderer {
     window_size.width as f32 / window_size.height as f32
   }
 
-  pub unsafe fn update_instance_data(&mut self, i: usize, data: &Vec<SquareInstance>) {
+  pub unsafe fn update_instance_data(&mut self, i: usize, data: &Vec<MatrixInstance>) {
     self.buffers.update_instance_data(i, &self.device, data);
   }
 
@@ -269,7 +288,6 @@ impl Renderer {
     // currenty the code waits for the old swapchain to finish rendering before recreating its dependencies
     // maybe there is a way to make it continue working while already preparing to acquire and present at the new swapchain
     // however, marking render_pass and pipeline as "old" and creating new ones seems quite bothersome and not right
-    // also, kinda half baked
 
     // old swapchain becomes retired
     let changes = self.swapchains.recreate_swapchain(
@@ -311,13 +329,11 @@ impl Renderer {
     );
   }
 
-  pub fn update_instance_compute_descriptor_set(&mut self, i: usize, instance_count: u64) {
-    self.descriptor_sets.pool.update_instance_compute(
-      i,
-      &self.device,
-      &self.buffers,
-      instance_count,
-    );
+  pub fn update_inst_dyn_descriptor_set(&mut self, i: usize, dyn_inst_count: u64) {
+    self
+      .descriptor_sets
+      .pool
+      .update_inst_dyn(i, &self.device, &self.buffers, dyn_inst_count);
   }
 }
 

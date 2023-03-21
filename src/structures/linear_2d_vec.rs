@@ -1,10 +1,10 @@
 use crate::structures::partition::Partition;
-use std::{ops::Index, slice::Iter};
+use std::{ops::Index, slice::Iter, vec::IntoIter};
 
 macro_rules! sized_flatten {
   ($x:expr, $s:ty) => {{
     let mut offset: $s = 0;
-    let part = Vec::with_capacity($x.len());
+    let mut part = Vec::with_capacity($x.len());
     for item in $x.iter() {
       let size = item.len() as $s;
       part.push(Partition::new(size, offset));
@@ -60,6 +60,22 @@ impl<T> Linear2dVec<T> {
     self.parts[i].offset
   }
 
+  pub fn part(&self, i: usize) -> Partition<usize> {
+    self.parts[i]
+  }
+
+  pub fn parts(&self) -> &Vec<Partition<usize>> {
+    &self.parts
+  }
+
+  pub fn parts_iter(&self) -> Iter<Partition<usize>> {
+    self.parts.iter()
+  }
+
+  pub fn into_parts_iter(self) -> IntoIter<Partition<usize>> {
+    self.parts.into_iter()
+  }
+
   pub fn as_ptr(&self) -> *const T {
     self.data.as_ptr()
   }
@@ -94,7 +110,7 @@ impl<T> Index<usize> for Linear2dVec<T> {
 impl<T> From<&mut dyn ExactSizeIterator<Item = Vec<T>>> for Linear2dVec<T> {
   fn from(iter: &mut dyn ExactSizeIterator<Item = Vec<T>>) -> Self {
     let mut offset: usize = 0;
-    let parts = Vec::with_capacity(iter.len());
+    let mut parts = Vec::with_capacity(iter.len());
     let data: Vec<T> = iter
       .flat_map(|item| {
         let size = item.len();
@@ -110,7 +126,7 @@ impl<T> From<&mut dyn ExactSizeIterator<Item = Vec<T>>> for Linear2dVec<T> {
 impl<T> From<&mut dyn Iterator<Item = Vec<T>>> for Linear2dVec<T> {
   fn from(iter: &mut dyn Iterator<Item = Vec<T>>) -> Self {
     let mut offset: usize = 0;
-    let parts = match iter.size_hint() {
+    let mut parts = match iter.size_hint() {
       (_, Some(size)) => Vec::with_capacity(size),
       _ => Vec::new(),
     };

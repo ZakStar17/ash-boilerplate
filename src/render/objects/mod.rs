@@ -15,6 +15,12 @@ mod swapchain;
 mod vert_instance;
 mod vertex;
 
+pub struct InstProperties {
+  pub inst_count: u32,
+  pub inst_offset: u32,
+  pub model_i: usize,
+}
+
 pub use buffers::Buffers;
 pub use command_buffer_pools::CommandBufferPools;
 #[cfg(feature = "vulkan_vl")]

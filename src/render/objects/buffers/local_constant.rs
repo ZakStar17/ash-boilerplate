@@ -6,8 +6,8 @@ use crate::{
   render::{
     models::Models,
     objects::{
-      command_buffer_pools::CopyBufferOperation, CommandBufferPools, MatrixInstance, 
-      QueueFamilyIndices, Queues, Vertex,
+      command_buffer_pools::CopyBufferOperation, CommandBufferPools, InstProperties,
+      MatrixInstance, QueueFamilyIndices, Queues, Vertex,
     },
   },
   static_scene::StaticScene,
@@ -19,25 +19,19 @@ use super::{
   VERTEX_SRC_USAGE,
 };
 
-pub struct DrawProperties {
-  index_count: u32,
-  instance_count: u32,
-  first_index: u32,
-  vertex_offset: i32,
-  first_instance: u32,
-}
-
 // holds model information and static objects
 // contains local memory, buffers and their offsets (in memory)
 pub struct LocalConstantMemory {
   memory: vk::DeviceMemory,
-  vertex: vk::Buffer,
-  vertex_offset: u64,
-  index: vk::Buffer,
-  index_offset: u64,
-  instance: vk::Buffer,
-  instance_offset: u64,
-  draw_props: Vec<DrawProperties>,
+  pub vertex: vk::Buffer,
+  pub vertex_offset: u64,
+  pub index: vk::Buffer,
+  pub index_offset: u64,
+  pub inst: vk::Buffer,
+  pub inst_offset: u64,
+  pub inst_size: u64,
+  pub inst_count: u32,
+  pub inst_props: Vec<InstProperties>,
 }
 
 macro_rules! copy_into_mem {
@@ -63,21 +57,21 @@ impl LocalConstantMemory {
     queue_families: &QueueFamilyIndices,
     queues: &Queues,
     command_pools: &mut CommandBufferPools,
+    models: &Models,
   ) -> Self {
-    let models = Models::load(); // vertices and indices
     let scene = StaticScene::load(); // information about static (constant location, etc.) objects
 
     // create vulkan buffers
     let vertex_size = (std::mem::size_of::<Vertex>() * models.vertices.len()) as u64;
     let index_size = (std::mem::size_of::<u16>() * models.indices.len()) as u64;
-    let instance_size = (std::mem::size_of::<MatrixInstance>() * scene.total_obj_count) as u64;
+    let inst_size = (std::mem::size_of::<MatrixInstance>() * scene.total_obj_count) as u64;
     let vk_buffers = create_travel_buffers(
       device,
       queue_families,
       vec![
         (vertex_size, VERTEX_SRC_USAGE, VERTEX_DST_USAGE),
         (index_size, INDEX_SRC_USAGE, INDEX_DST_USAGE),
-        (instance_size, STORAGE_SRC_USAGE, STORAGE_USAGE),
+        (inst_size, STORAGE_SRC_USAGE, STORAGE_USAGE),
       ],
     );
 
@@ -109,23 +103,16 @@ impl LocalConstantMemory {
 
     let (vec, inst_model_indices) = scene.objects();
     let (inst_objs, inst_parts) = vec.deconstruct();
-    let draw_props = inst_model_indices
+    let inst_props = inst_model_indices
       .into_iter()
       .zip(inst_parts.iter())
-      .map(|(model_i, part)| {
-        let model_inst = (&models)[model_i];
-        let (inst_size, inst_offset) = part.deconstruct();
-        DrawProperties {
-          index_count: model_inst.indices.len() as u32,
-          first_index: model_inst.index_offset as u32,
-          vertex_offset: model_inst.vertex_offset as i32,
-          instance_count: inst_size as u32,
-          first_instance: inst_offset as u32,
-        }
+      .map(|(model_i, part)| InstProperties {
+        model_i,
+        inst_count: part.size as u32,
+        inst_offset: part.offset as u32,
       })
       .collect();
-
-    let instance_data: Vec<MatrixInstance> = inst_objs
+    let inst_data: Vec<MatrixInstance> = inst_objs
       .into_iter()
       .map(|ren| MatrixInstance::new(ren.obj().model().clone()))
       .collect();
@@ -140,7 +127,7 @@ impl LocalConstantMemory {
         device,
         src_memory,
         src_offsets[2],
-        instance_data,
+        inst_data,
         MatrixInstance
       );
     }
@@ -151,7 +138,7 @@ impl LocalConstantMemory {
       let operations: Vec<CopyBufferOperation> = src_buffers
         .iter()
         .zip(dst_buffers.iter())
-        .map(|((src_size, src), (dst_size, dst))| CopyBufferOperation {
+        .map(|((src_size, src), (_dst_size, dst))| CopyBufferOperation {
           source_buffer: *src,
           dest_buffer: *dst,
           copy_regions: vec![vk::BufferCopy {
@@ -208,18 +195,16 @@ impl LocalConstantMemory {
       device.wait_for_fences(&[finished], true, u64::MAX).unwrap();
 
       device.destroy_fence(finished, None);
-      for (_, mut src) in src_buffers {
+      for (_, src) in src_buffers {
         device.destroy_buffer(src, None);
       }
       device.free_memory(src_memory, None);
     }
 
-    let (_, vertex_parts) = models.vertices.deconstruct();
-    let (_, index_parts) = models.indices.deconstruct();
     let mut dsts_iter = dst_buffers.into_iter();
     let vertex = dsts_iter.next().unwrap().1;
     let index = dsts_iter.next().unwrap().1;
-    let instance = dsts_iter.next().unwrap().1;
+    let inst = dsts_iter.next().unwrap().1;
 
     Self {
       memory: dst_memory,
@@ -227,24 +212,18 @@ impl LocalConstantMemory {
       vertex_offset: dst_offsets[0],
       index,
       index_offset: dst_offsets[1],
-      instance,
-      instance_offset: dst_offsets[2],
-      draw_props,
+      inst,
+      inst_offset: dst_offsets[2],
+      inst_size,
+      inst_count: inst_data.len() as u32,
+      inst_props,
     }
-  }
-
-  pub fn vertex(&self) -> vk::Buffer {
-    self.vertex
-  }
-
-  pub fn index(&self) -> vk::Buffer {
-    self.index
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
     device.destroy_buffer(self.vertex, None);
     device.destroy_buffer(self.index, None);
-    device.destroy_buffer(self.instance, None);
+    device.destroy_buffer(self.inst, None);
     device.free_memory(self.memory, None);
   }
 }

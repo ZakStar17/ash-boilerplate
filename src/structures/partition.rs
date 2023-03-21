@@ -1,5 +1,6 @@
 use num::{PrimInt, Unsigned};
 
+#[derive(Clone, Copy)]
 pub struct Partition<S> {
   pub size: S,
   pub offset: S,

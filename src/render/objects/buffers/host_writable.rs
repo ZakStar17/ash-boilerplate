@@ -14,7 +14,7 @@ use super::{
 
 pub struct HostWritableMemory {
   memory: vk::DeviceMemory,
-  instance: [(vk::Buffer, u64); FRAMES_IN_FLIGHT],
+  pub inst: [(vk::Buffer, u64); FRAMES_IN_FLIGHT],
 }
 
 impl HostWritableMemory {
@@ -51,9 +51,9 @@ impl HostWritableMemory {
       .into_iter()
       .map(|(_, buffer)| buffer)
       .zip(offsets.into_iter());
-    let instance = utility::iter_into_array!(instance_iter, FRAMES_IN_FLIGHT);
+    let inst = utility::iter_into_array!(instance_iter, FRAMES_IN_FLIGHT);
 
-    Self { memory, instance }
+    Self { memory, inst }
   }
 
   pub unsafe fn write_instance(
@@ -66,7 +66,7 @@ impl HostWritableMemory {
     let data_ptr = device
       .map_memory(
         self.memory,
-        self.instance[i].1,
+        self.inst[i].1,
         (std::mem::size_of::<MatrixInstance>() * data.len()) as u64,
         vk::MemoryMapFlags::empty(),
       )
@@ -75,12 +75,8 @@ impl HostWritableMemory {
     device.unmap_memory(self.memory);
   }
 
-  pub fn instance(&self, i: usize) -> vk::Buffer {
-    self.instance[i].0
-  }
-
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    for (buffer, _) in self.instance.iter_mut() {
+    for (buffer, _) in self.inst.iter_mut() {
       device.destroy_buffer(*buffer, None);
     }
     device.free_memory(self.memory, None);

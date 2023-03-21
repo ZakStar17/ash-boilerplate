@@ -10,8 +10,8 @@ use winit::{
 
 use crate::{
   keys::{Keys, Pressed},
+  objects::Square,
   render::{Camera, SyncRender},
-  square::Square,
 };
 
 const MAX_SQUARE_AMOUNT: usize = 8;

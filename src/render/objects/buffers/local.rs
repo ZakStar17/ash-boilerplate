@@ -13,7 +13,7 @@ use super::{
 
 pub struct LocalMemory {
   memory: vk::DeviceMemory,
-  instance: [(vk::Buffer, u64); FRAMES_IN_FLIGHT],
+  pub inst: [(vk::Buffer, u64); FRAMES_IN_FLIGHT],
 }
 
 impl LocalMemory {
@@ -46,17 +46,13 @@ impl LocalMemory {
       .into_iter()
       .map(|(_, buffer)| buffer)
       .zip(offsets.into_iter());
-    let instance = utility::iter_into_array!(buffers_iter, FRAMES_IN_FLIGHT);
+    let inst = utility::iter_into_array!(buffers_iter, FRAMES_IN_FLIGHT);
 
-    Self { memory, instance }
-  }
-
-  pub fn instance(&self, i: usize) -> vk::Buffer {
-    self.instance[i].0
+    Self { memory, inst }
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    for (buffer, _) in self.instance.iter_mut() {
+    for (buffer, _) in self.inst.iter_mut() {
       device.destroy_buffer(*buffer, None);
     }
     device.free_memory(self.memory, None);

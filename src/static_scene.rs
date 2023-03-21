@@ -37,7 +37,7 @@ impl StaticScene {
     let all = [squares, cubes];
     // shoud correspond to the above
     let model_indices = vec![Models::SQUARE_INDEX, Models::CUBE_INDEX];
-    let iter = all.into_iter();
+    let mut iter = all.into_iter();
     let iter: &mut dyn ExactSizeIterator<Item = Vec<&'a dyn RenderableIn3d>> = &mut iter;
     (Linear2dVec::from(iter), model_indices)
   }

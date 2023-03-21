@@ -1,5 +1,3 @@
-use std::ops::Index;
-
 use crate::structures::Linear2dVec;
 
 use super::objects::Vertex;
@@ -12,11 +10,11 @@ trait Model {
   fn get_indices() -> Vec<u16>;
 }
 
-pub struct ModelInstance<'a> {
-  pub vertices: &'a [Vertex],
-  pub vertex_offset: usize,
-  pub indices: &'a [u16],
-  pub index_offset: usize,
+pub struct ModelProperties {
+  pub vertex_count: u32,
+  pub vertex_offset: i32,
+  pub index_count: u32,
+  pub index_offset: u32,
 }
 
 pub struct Models {
@@ -52,21 +50,29 @@ impl Models {
     let iter: &mut dyn ExactSizeIterator<Item = Vec<u16>> = &mut iter;
     Linear2dVec::from(iter)
   }
-}
 
-impl<'a> Index<usize> for &'a Models {
-  type Output = ModelInstance<'a>;
-
-  fn index(&self, i: usize) -> &Self::Output {
-    let vertices = &self.vertices[i];
-    let vertex_offset = self.vertices.offset(i);
-    let indices = &self.indices[i];
-    let index_offset = self.indices.offset(i);
-    &ModelInstance {
-      vertices,
-      vertex_offset,
-      indices,
-      index_offset,
+  pub fn get_property(&self, i: usize) -> ModelProperties {
+    let (vertex_count, vertex_offset) = self.vertices.part(i).deconstruct();
+    let (index_count, index_offset) = self.indices.part(i).deconstruct();
+    ModelProperties {
+      vertex_count: vertex_count as u32,
+      vertex_offset: vertex_offset as i32,
+      index_count: index_count as u32,
+      index_offset: index_offset as u32,
     }
+  }
+
+  pub fn into_properties(self) -> Vec<ModelProperties> {
+    self
+      .vertices
+      .into_parts_iter()
+      .zip(self.indices.into_parts_iter())
+      .map(|(vertex_p, index_p)| ModelProperties {
+        vertex_count: vertex_p.size as u32,
+        vertex_offset: vertex_p.offset as i32,
+        index_count: index_p.size as u32,
+        index_offset: index_p.offset as u32,
+      })
+      .collect()
   }
 }

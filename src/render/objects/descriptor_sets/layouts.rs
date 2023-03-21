@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{ops::Deref, ptr};
 
 use ash::vk;
 
@@ -7,8 +7,16 @@ pub struct SizedLayout {
   pub descriptor_count: usize,
 }
 
+impl Deref for SizedLayout {
+  type Target = vk::DescriptorSetLayout;
+
+  fn deref(&self) -> &Self::Target {
+    &self.layout
+  }
+}
+
 pub struct DescriptorSetLayouts {
-  pub instance_compute: SizedLayout,
+  pub inst: SizedLayout,
 }
 
 impl DescriptorSetLayouts {
@@ -49,7 +57,7 @@ impl DescriptorSetLayouts {
     };
 
     Self {
-      instance_compute: SizedLayout {
+      inst: SizedLayout {
         layout,
         descriptor_count,
       },
@@ -57,6 +65,6 @@ impl DescriptorSetLayouts {
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    device.destroy_descriptor_set_layout(self.instance_compute.layout, None);
+    device.destroy_descriptor_set_layout(self.inst.layout, None);
   }
 }

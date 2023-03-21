@@ -7,13 +7,14 @@ use ash::vk;
 use log::{info, warn};
 use winit::{dpi::PhysicalPosition, event_loop::EventLoop, window::CursorGrabMode};
 
-use crate::{square::Square, FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT};
+use crate::{objects::Square, FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT};
 
 use super::{
   camera::{Camera, RenderCamera},
   cursor::Cursor,
+  objects::InstProperties,
   renderer::Renderer,
-  SquareInstance,
+  MatrixInstance,
 };
 
 // only 2 will work
@@ -304,11 +305,16 @@ impl SyncRender {
     self.cursor.delta_x = 0.0;
     self.cursor.delta_y = 0.0;
 
-    // doing this every frame is slow
-    let square_instances: Vec<SquareInstance> = squares
+    // todo: needs refinement / optimizations
+    let square_instances: Vec<MatrixInstance> = squares
       .iter()
-      .map(|sq| SquareInstance::new(*sq.model()))
+      .map(|sq| MatrixInstance::new(*sq.model()))
       .collect();
+    let dyn_inst_props = vec![InstProperties {
+      inst_count: squares.len() as u32,
+      inst_offset: 0,
+      model_i: Square::MODEL_INDEX,
+    }];
 
     //
 
@@ -386,37 +392,41 @@ impl SyncRender {
 
     // image not in use = safe to record current command buffer
     unsafe {
-      self.renderer.record_main_command_buffer(
-        cur_frame_i,
-        image_index as usize,
-        squares.len() as u32,
-      );
+      self
+        .renderer
+        .record_main_command_buffer(cur_frame_i, image_index as usize, &dyn_inst_props);
 
       self
         .renderer
-        .update_instance_compute_descriptor_set(cur_frame_i, squares.len() as u64);
+        .record_inst_static_comm_buffer(cur_frame_i, &self.camera);
+
+      self
+        .renderer
+        .update_inst_dyn_descriptor_set(cur_frame_i, squares.len() as u64);
       self
         .renderer
         .update_instance_data(cur_frame_i, &square_instances);
-      self.renderer.record_instance_compute_command_buffer(
-        cur_frame_i,
-        squares.len() as u32,
-        &self.camera,
-      );
+      self
+        .renderer
+        .record_inst_dyn_comm_buffer(cur_frame_i, &self.camera, squares.len() as u32);
     }
 
     // compute queue submit
     let wait_semaphores = [];
     let wait_stages = [];
     let signal_semaphores = [cur_frame.instance_compute_finished];
+    let command_buffers = [
+      self.renderer.command_buffer_pools.compute.inst_static[cur_frame_i],
+      self.renderer.command_buffer_pools.compute.inst_dyn[cur_frame_i],
+    ];
     let submit_infos = [vk::SubmitInfo {
       s_type: vk::StructureType::SUBMIT_INFO,
       p_next: ptr::null(),
       wait_semaphore_count: wait_semaphores.len() as u32,
       p_wait_semaphores: wait_semaphores.as_ptr(),
       p_wait_dst_stage_mask: wait_stages.as_ptr(),
-      command_buffer_count: 1,
-      p_command_buffers: &self.renderer.command_buffer_pools.compute.instance[cur_frame_i],
+      command_buffer_count: command_buffers.len() as u32,
+      p_command_buffers: command_buffers.as_ptr(),
       signal_semaphore_count: signal_semaphores.len() as u32,
       p_signal_semaphores: signal_semaphores.as_ptr(),
     }];

@@ -7,6 +7,8 @@ use std::ptr;
 use ash::vk;
 use num::Integer;
 
+use crate::render::Models;
+
 use self::{
   host_writable::HostWritableMemory, local::LocalMemory, local_constant::LocalConstantMemory,
 };
@@ -117,7 +119,7 @@ fn allocate_vk_buffers(
       .allocate_memory(&allocate_info, None)
       .expect("Failed to allocate vertex buffer memory")
   };
-  for ((size, buffer), offset) in buffers.iter().zip(offsets.iter()) {
+  for ((_size, buffer), offset) in buffers.iter().zip(offsets.iter()) {
     unsafe {
       device
         .bind_buffer_memory(*buffer, buffer_memory, *offset)
@@ -142,7 +144,8 @@ impl Buffers {
     queue_families: &QueueFamilyIndices,
     queues: &Queues,
     command_pools: &mut CommandBufferPools,
-    max_instances: u64,
+    models: &Models,
+    max_dyn_inst_count: u64,
   ) -> Self {
     let memory_properties =
       unsafe { instance.get_physical_device_memory_properties(physical_device) };
@@ -154,23 +157,21 @@ impl Buffers {
         queue_families,
         queues,
         command_pools,
+        models,
       ),
       host_writable: HostWritableMemory::new(
         device,
         memory_properties,
         queue_families,
-        max_instances,
+        max_dyn_inst_count,
       ),
-      local: LocalMemory::new(device, memory_properties, queue_families, max_instances),
+      local: LocalMemory::new(
+        device,
+        memory_properties,
+        queue_families,
+        max_dyn_inst_count,
+      ),
     }
-  }
-
-  pub fn instance_source(&self, i: usize) -> vk::Buffer {
-    self.host_writable.instance(i)
-  }
-
-  pub fn instance_dest(&self, i: usize) -> vk::Buffer {
-    self.local.instance(i)
   }
 
   pub unsafe fn update_instance_data(
