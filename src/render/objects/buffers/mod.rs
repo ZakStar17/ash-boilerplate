@@ -5,6 +5,7 @@ mod local_constant;
 use std::ptr;
 
 use ash::vk;
+use log::debug;
 use num::Integer;
 
 use crate::render::Models;
@@ -149,28 +150,35 @@ impl Buffers {
   ) -> Self {
     let memory_properties =
       unsafe { instance.get_physical_device_memory_properties(physical_device) };
+    debug!("Allocating constant memory");
+    let local_constant = LocalConstantMemory::new(
+      device,
+      memory_properties,
+      queue_families,
+      queues,
+      command_pools,
+      models,
+    );
+    debug!("Allocating host memory");
+    let host_writable = HostWritableMemory::new(
+      device,
+      memory_properties,
+      queue_families,
+      max_dyn_inst_count,
+    );
+    debug!("Allocating local memory");
+    let local = LocalMemory::new(
+      device,
+      memory_properties,
+      queue_families,
+      local_constant.inst_count as u64,
+      max_dyn_inst_count,
+    );
 
     Self {
-      local_constant: LocalConstantMemory::new(
-        device,
-        memory_properties,
-        queue_families,
-        queues,
-        command_pools,
-        models,
-      ),
-      host_writable: HostWritableMemory::new(
-        device,
-        memory_properties,
-        queue_families,
-        max_dyn_inst_count,
-      ),
-      local: LocalMemory::new(
-        device,
-        memory_properties,
-        queue_families,
-        max_dyn_inst_count,
-      ),
+      local_constant,
+      host_writable,
+      local,
     }
   }
 
@@ -220,6 +228,7 @@ fn create_buffer(
   usage: vk::BufferUsageFlags,
   queue_family_indices: &[u32],
 ) -> vk::Buffer {
+  assert!(size > 0);
   let vertex_buffer_create_info = vk::BufferCreateInfo {
     s_type: vk::StructureType::BUFFER_CREATE_INFO,
     p_next: ptr::null(),

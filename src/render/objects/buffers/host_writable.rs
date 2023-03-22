@@ -22,11 +22,11 @@ impl HostWritableMemory {
     device: &ash::Device,
     memory_properties: vk::PhysicalDeviceMemoryProperties,
     queue_families: &QueueFamilyIndices,
-    max_instances: u64,
+    max_dyn_inst_count: u64,
   ) -> Self {
-    let instance_size = std::mem::size_of::<MatrixInstance>() as u64 * max_instances;
+    let inst_size = std::mem::size_of::<MatrixInstance>() as u64 * max_dyn_inst_count;
 
-    let instance_usages: Vec<_> = std::iter::repeat((instance_size, STORAGE_SRC_USAGE))
+    let instance_usages: Vec<_> = std::iter::repeat((inst_size, STORAGE_SRC_USAGE))
       .take(FRAMES_IN_FLIGHT)
       .collect();
 

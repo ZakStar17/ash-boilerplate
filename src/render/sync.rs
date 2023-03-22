@@ -442,6 +442,8 @@ impl SyncRender {
         .expect("failed to execute queue submit");
     }
 
+    panic!();
+
     // std::thread::sleep(std::time::Duration::from_millis(5000));
     // unsafe {
     //   self.renderer.device.device_wait_idle().unwrap();

@@ -1,3 +1,5 @@
+use cgmath::Point3;
+
 use crate::{
   objects::{Cube, RenderableIn3d, Square},
   render::Models,
@@ -6,27 +8,30 @@ use crate::{
 
 pub struct StaticScene {
   pub total_obj_count: usize,
+  pub squares: Vec<Square>,
+  pub cubes: Vec<Cube>,
 }
 
 impl StaticScene {
-  const SQUARES: [Square; 0] = [];
-  const CUBES: [Cube; 0] = [];
-
   pub fn load() -> Self {
+    let squares = vec![Square::new(Point3::new(5.0, 5.0, 5.0))];
+    let cubes = vec![];
     Self {
-      total_obj_count: Self::SQUARES.len() + Self::CUBES.len(),
+      total_obj_count: squares.len() + cubes.len(),
+      squares,
+      cubes,
     }
   }
 
   pub fn objects<'a>(&'a self) -> (Linear2dVec<&'a dyn RenderableIn3d>, Vec<usize>) {
-    let squares: Vec<&'a dyn RenderableIn3d> = Self::SQUARES
+    let squares: Vec<&'a dyn RenderableIn3d> = self.squares
       .iter()
       .map(|x| {
         let result: &'a dyn RenderableIn3d = x;
         result
       })
       .collect();
-    let cubes: Vec<&'a dyn RenderableIn3d> = Self::CUBES
+    let cubes: Vec<&'a dyn RenderableIn3d> = self.cubes
       .iter()
       .map(|x| {
         let result: &'a dyn RenderableIn3d = x;

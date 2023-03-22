@@ -21,16 +21,17 @@ impl LocalMemory {
     device: &ash::Device,
     memory_properties: vk::PhysicalDeviceMemoryProperties,
     queue_families: &QueueFamilyIndices,
-    max_instances: u64,
+    static_inst_count: u64,
+    max_dyn_inst_count: u64
   ) -> Self {
-    let instance_size = std::mem::size_of::<MatrixInstance>() as u64 * max_instances;
+    let inst_size = std::mem::size_of::<MatrixInstance>() as u64 * (static_inst_count + max_dyn_inst_count);
 
-    let instance_usages: Vec<_> = std::iter::repeat((instance_size, VERTEX_STORAGE_DST_USAGE))
+    let inst_usages: Vec<_> = std::iter::repeat((inst_size, VERTEX_STORAGE_DST_USAGE))
       .take(FRAMES_IN_FLIGHT)
       .collect();
     // write by compute, read by graphics
     let queue_indices = [queue_families.graphics, queue_families.compute];
-    let buffers = instance_usages
+    let buffers = inst_usages
       .into_iter()
       .map(|(size, usage)| (size, create_buffer(device, size, usage, &queue_indices)))
       .collect();

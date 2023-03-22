@@ -20,6 +20,12 @@ impl Square {
     }
   }
 
+  pub fn new(position: Point3<f32>) -> Self {
+    Self {
+      render: Renderable3dObject::new(position),
+    }
+  }
+
   pub fn model(&self) -> &Matrix4<f32> {
     self.render.model()
   }
