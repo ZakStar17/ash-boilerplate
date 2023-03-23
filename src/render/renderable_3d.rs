@@ -4,6 +4,7 @@ pub trait RenderableIn3d {
   fn ren(&self) -> &Renderable3dObject;
   fn into_ren(self) -> Renderable3dObject;
   fn ren_mut(&mut self) -> &mut Renderable3dObject;
+  fn model_i(&self) -> usize;
 }
 
 /// Object information suitable for rendering in 3D. Caches certain matrices

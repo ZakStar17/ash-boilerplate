@@ -7,7 +7,10 @@ use ash::vk;
 use log::{info, warn};
 use winit::{dpi::PhysicalPosition, event_loop::EventLoop, window::CursorGrabMode};
 
-use crate::{objects::Square, FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT};
+use crate::{
+  objects::{Niko, Square},
+  FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT,
+};
 
 use super::{
   camera::{Camera, RenderCamera},
@@ -285,7 +288,7 @@ impl SyncRender {
     }
   }
 
-  pub fn render_next_frame(&mut self, time_since_last_frame: &Duration, squares: &Vec<Square>) {
+  pub fn render_next_frame(&mut self, time_since_last_frame: &Duration, dyn_objects: &Vec<Niko>) {
     let s = Duration::from_secs_f32(1.0 / 60.0);
     if time_since_last_frame < &s {
       std::thread::sleep(s - *time_since_last_frame);
@@ -306,14 +309,14 @@ impl SyncRender {
     self.cursor.delta_y = 0.0;
 
     // todo: needs refinement / optimizations
-    let square_instances: Vec<MatrixInstance> = squares
+    let square_instances: Vec<MatrixInstance> = dyn_objects
       .iter()
       .map(|sq| MatrixInstance::new(*sq.ren().model()))
       .collect();
     let dyn_inst_props = vec![InstProperties {
-      inst_count: squares.len() as u32,
+      inst_count: dyn_objects.len() as u32,
       inst_offset: 0,
-      model_i: Square::MODEL_INDEX,
+      model_i: dyn_objects[0].model_i(),
     }];
 
     //
@@ -402,13 +405,15 @@ impl SyncRender {
 
       self
         .renderer
-        .update_inst_dyn_descriptor_set(cur_frame_i, squares.len() as u64);
+        .update_inst_dyn_descriptor_set(cur_frame_i, dyn_objects.len() as u64);
       self
         .renderer
         .update_instance_data(cur_frame_i, &square_instances);
-      self
-        .renderer
-        .record_inst_dyn_comm_buffer(cur_frame_i, &self.camera, squares.len() as u32);
+      self.renderer.record_inst_dyn_comm_buffer(
+        cur_frame_i,
+        &self.camera,
+        dyn_objects.len() as u32,
+      );
     }
 
     // compute queue submit
@@ -493,7 +498,7 @@ impl SyncRender {
       if let Err(_) = self.renderer.queue_present(image_index, &signal_semaphores) {
         // NOTE: It seems that sometimes the window can be resized while the image is being presented
         // this occurs because winit only takes notice at the start of the next frame
-        // however, it is very inconsistent
+        // however, it is very inconsistent, so I don't know how to fix this
         warn!("failed to present to swapchain");
         self.recreate_swapchain_next_frame = true;
       }

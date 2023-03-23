@@ -80,15 +80,19 @@ impl RenderCamera {
     &mut self.camera.speed
   }
 
-  pub fn position(&mut self) -> Point3<f32> {
+  pub fn front(&self) -> Vector3<f32> {
+    self.front
+  }
+
+  pub fn position(&self) -> Point3<f32> {
     self.camera.position
   }
 
-  pub fn yaw(&mut self) -> f32 {
+  pub fn yaw(&self) -> f32 {
     self.camera.yaw
   }
 
-  pub fn pitch(&mut self) -> f32 {
+  pub fn pitch(&self) -> f32 {
     self.camera.pitch
   }
 

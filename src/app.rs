@@ -10,34 +10,34 @@ use winit::{
 
 use crate::{
   keys::{Keys, Pressed},
-  objects::Square,
+  objects::{Niko},
   render::{Camera, RenderableIn3d, SyncRender},
 };
 
-const MAX_SQUARE_AMOUNT: usize = 8;
+const MAX_DYN_OBJ_AMOUNT: usize = 16;
 
 const CAMERA_NORMAL_SPEED: f32 = 2.0;
 const CAMERA_FAST_SPEED: f32 = 10.0;
 
 pub struct App {
   render: SyncRender,
-  squares: Vec<Square>,
+  objects: Vec<Niko>,
   keys: Keys,
 }
 
 impl App {
   pub fn new(event_loop: &EventLoop<()>) -> Self {
-    let squares = vec![Square::from_full(
+    let objects = vec![Niko::from_full(
       Point3::new(-0.5, -0.5, 0.0),
       Euler::new(Rad(0.0), Rad(0.0), Rad(0.0)),
-      0.2,
+      0.1,
     )];
     let camera = Camera::new(CAMERA_NORMAL_SPEED);
-    let render = SyncRender::initialize(event_loop, camera, MAX_SQUARE_AMOUNT as u64);
+    let render = SyncRender::initialize(event_loop, camera, MAX_DYN_OBJ_AMOUNT as u64);
 
     Self {
       render,
-      squares,
+      objects,
       keys: Keys::new(),
     }
   }
@@ -50,15 +50,19 @@ impl App {
           return true;
         }
         (VirtualKeyCode::Q, ElementState::Released) => {
-          if self.squares.len() < MAX_SQUARE_AMOUNT {
+          // all just a placeholder for now
+          if self.objects.len() < MAX_DYN_OBJ_AMOUNT {
             let mut rng = rand::thread_rng();
-            self.squares.push(Square::from_full(
-              Point3::new(rng.gen::<f32>() - 0.5, rng.gen::<f32>() - 0.5, 0.0),
+            let size = rng.gen::<f32>() * 0.2 + 0.05;
+            let pos =
+              self.render.camera.position() + (self.render.camera.front() * (2.0 + (size * 3.0)));
+            self.objects.push(Niko::from_full(
+              pos,
               Euler::new(Rad(0.0), Rad(0.0), Rad(0.0)),
-              rng.gen::<f32>() * 0.5,
+              size,
             ));
           } else {
-            println!("Max square amount reached");
+            println!("Max dynamic object amount reached");
           }
         }
         (VirtualKeyCode::C, ElementState::Pressed) => {
@@ -127,8 +131,8 @@ impl App {
         self.render.camera.move_down(&duration_since_last_frame)
       }
     }
-    for square in self.squares.iter_mut() {
-      let ren = square.ren_mut();
+    for obj in self.objects.iter_mut() {
+      let ren = obj.ren_mut();
       let rot = ren.rotation();
       let mut rng = rand::thread_rng();
       ren.rotate(Euler {
@@ -140,6 +144,6 @@ impl App {
 
     self
       .render
-      .render_next_frame(&duration_since_last_frame, &self.squares);
+      .render_next_frame(&duration_since_last_frame, &self.objects);
   }
 }

@@ -47,10 +47,7 @@ impl Cube {
 }
 
 impl Model for Cube {
-  fn get_vertices() -> Vec<Vertex> {
-    Self::VERTICES.to_vec()
-  }
-  fn get_indices() -> Vec<u16> {
-    Self::INDICES.to_vec()
+  fn load() -> (Vec<Vertex>, Vec<u16>) {
+    (Self::VERTICES.to_vec(), Self::INDICES.to_vec())
   }
 }
