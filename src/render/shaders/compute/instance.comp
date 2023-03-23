@@ -2,31 +2,20 @@
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform PushConstantData {
-  vec2 camera_pos;
+  mat4 projection_view;
 } pc;
 
-struct Input {
-  vec2 pos;
-  float size;
-};
-
-layout(std430, set = 0, binding = 0) readonly buffer InputData {
-  Input data[];
+layout(set = 0, binding = 0) readonly buffer InputData {
+  mat4 model[];
 }
 inputData;
 
-struct Output {
-  vec2 pos;
-  float size;
-};
-
-layout(std430, set = 0, binding = 1) writeonly buffer OutputData {
-  Output data[];
+layout(set = 0, binding = 1) buffer OutputData {
+  mat4 matrix[];
 }
 outputData;
 
 void main() {
   uint i = gl_LocalInvocationIndex;
-  outputData.data[i].pos = inputData.data[i].pos + pc.camera_pos;
-  outputData.data[i].size = inputData.data[i].size;
+  outputData.matrix[i] = pc.projection_view * inputData.model[i];
 }

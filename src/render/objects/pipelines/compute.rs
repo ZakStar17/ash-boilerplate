@@ -1,12 +1,13 @@
 use std::{ffi::CString, ptr};
 
 use ash::vk;
+use cgmath::Matrix4;
 
-use crate::render::{objects::{DescriptorSets, CameraPos}, shaders::ComputeShaders};
+use crate::render::{objects::DescriptorSets, shaders::ComputeShaders};
 
 pub struct ComputePipelines {
   pub layout: vk::PipelineLayout,
-  pub instance: vk::Pipeline,
+  pub inst: vk::Pipeline,
 }
 
 impl ComputePipelines {
@@ -24,15 +25,12 @@ impl ComputePipelines {
       stage: vk::ShaderStageFlags::COMPUTE,
     };
 
-    // TODO:
-    // add push constants
-
     let push_constant_ranges = [vk::PushConstantRange {
       stage_flags: vk::ShaderStageFlags::COMPUTE,
       offset: 0,
-      size: std::mem::size_of::<CameraPos>() as u32
+      size: std::mem::size_of::<Matrix4<f32>>() as u32,
     }];
-    let set_layouts = [descriptor_sets.layouts.instance_compute.layout];
+    let set_layouts = [descriptor_sets.layouts.inst.layout];
     let layout_create_info = vk::PipelineLayoutCreateInfo {
       s_type: vk::StructureType::PIPELINE_LAYOUT_CREATE_INFO,
       p_next: ptr::null(),
@@ -72,12 +70,12 @@ impl ComputePipelines {
 
     Self {
       layout,
-      instance: pipelines_iter.next().unwrap(),
+      inst: pipelines_iter.next().unwrap(),
     }
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    device.destroy_pipeline(self.instance, None);
+    device.destroy_pipeline(self.inst, None);
     device.destroy_pipeline_layout(self.layout, None);
   }
 }

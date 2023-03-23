@@ -1,13 +1,19 @@
+#![feature(cstr_from_bytes_until_nul)]
+#![feature(iter_next_chunk)]
+
 mod app;
 mod keys;
+mod objects;
 mod render;
+mod static_scene;
+mod structures;
 
 use std::time::{Duration, Instant};
 
 use app::App;
 use log::{debug, info};
 use winit::{
-  event::{Event, KeyboardInput, WindowEvent},
+  event::{Event, KeyboardInput, MouseScrollDelta, WindowEvent},
   event_loop::{ControlFlow, EventLoop},
 };
 
@@ -58,6 +64,20 @@ pub fn main_loop(event_loop: EventLoop<()>, mut app: App) {
           application_paused = false;
           app.handle_window_resize();
         }
+      }
+      WindowEvent::CursorMoved { position, .. } => {
+        app.handle_cursor_moved(position);
+      }
+      WindowEvent::MouseWheel { delta, .. } => {
+        if let MouseScrollDelta::LineDelta(_, y) = delta {
+          app.handle_mouse_wheel(y);
+        }
+      }
+      WindowEvent::CursorLeft { .. } => {
+        app.handle_cursor_left_window();
+      }
+      WindowEvent::CursorEntered { .. } => {
+        app.handle_cursor_entered_window();
       }
       _ => {}
     },

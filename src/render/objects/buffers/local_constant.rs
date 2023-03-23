@@ -1,21 +1,53 @@
 use std::ptr;
 
 use ash::vk;
-use log::warn;
 
-use crate::render::objects::{
-  command_buffer_pools::CopyBufferOperation, CommandBufferPools, QueueFamilyIndices, Queues, Vertex,
+use crate::{
+  render::{
+    models::Models,
+    objects::{
+      command_buffer_pools::CopyBufferOperation, CommandBufferPools, InstProperties,
+      MatrixInstance, QueueFamilyIndices, Queues, Vertex,
+    },
+  },
+  static_scene::StaticScene,
 };
 
 use super::{
-  create_travel_buffers, SizedBuffer, HOST_MEMORY_PROPERTY_FLAGS, INDEX_DST_USAGE, INDEX_SRC_USAGE,
-  LOCAL_MEMORY_PROPERTY_FLAGS, VERTEX_DST_USAGE, VERTEX_SRC_USAGE,
+  create_travel_buffers, HOST_MEMORY_PROPERTY_FLAGS, INDEX_DST_USAGE, INDEX_SRC_USAGE,
+  LOCAL_MEMORY_PROPERTY_FLAGS, STORAGE_SRC_USAGE, STORAGE_USAGE, VERTEX_DST_USAGE,
+  VERTEX_SRC_USAGE,
 };
 
+// holds model information and static objects
+// contains local memory, buffers and their offsets (in memory)
 pub struct LocalConstantMemory {
   memory: vk::DeviceMemory,
-  vertex: SizedBuffer,
-  index: SizedBuffer,
+  pub vertex: vk::Buffer,
+  pub vertex_offset: u64,
+  pub index: vk::Buffer,
+  pub index_offset: u64,
+  pub inst: vk::Buffer,
+  pub inst_offset: u64,
+  pub inst_size: u64,
+  pub inst_count: u32,
+  pub inst_props: Vec<InstProperties>,
+}
+
+macro_rules! copy_into_mem {
+  ($device:expr, $mem:expr, $mem_offset:expr, $data:expr, $t:ty) => {
+    let l = $data.len();
+    let data_ptr = $device
+      .map_memory(
+        $mem,
+        $mem_offset,
+        (std::mem::size_of::<$t>() * l) as u64,
+        vk::MemoryMapFlags::empty(),
+      )
+      .expect("Failed to map memory") as *mut $t;
+    data_ptr.copy_from_nonoverlapping($data.as_ptr(), l);
+    $device.unmap_memory($mem);
+  };
 }
 
 impl LocalConstantMemory {
@@ -25,85 +57,94 @@ impl LocalConstantMemory {
     queue_families: &QueueFamilyIndices,
     queues: &Queues,
     command_pools: &mut CommandBufferPools,
-    vertices: &Vec<Vertex>,
-    indices: &Vec<u16>,
+    models: &Models,
   ) -> Self {
-    let vertex_size = (std::mem::size_of::<Vertex>() * vertices.len()) as u64;
-    let index_size = (std::mem::size_of::<u16>() * indices.len()) as u64;
+    let scene = StaticScene::load(); // information about static (constant location, etc.) objects
 
+    // create vulkan buffers
+    let vertex_size = (std::mem::size_of::<Vertex>() * models.vertices.len()) as u64;
+    let index_size = (std::mem::size_of::<u16>() * models.indices.len()) as u64;
+    let inst_size = (std::mem::size_of::<MatrixInstance>() * scene.total_obj_count) as u64;
     let vk_buffers = create_travel_buffers(
       device,
       queue_families,
       vec![
         (vertex_size, VERTEX_SRC_USAGE, VERTEX_DST_USAGE),
         (index_size, INDEX_SRC_USAGE, INDEX_DST_USAGE),
+        (inst_size, STORAGE_SRC_USAGE, STORAGE_USAGE),
       ],
     );
 
-    let source_vk_buffers = vk_buffers
+    // allocate vulkan buffers
+    let src_buffers = vk_buffers
       .iter()
       .map(|&(size, source, _)| (size, source))
       .collect();
-    let dst_vk_buffers = vk_buffers
+    let dst_buffers = vk_buffers
       .into_iter()
       .map(|(size, _, dst)| (size, dst))
       .collect();
-    let (source_memory, source_size, sources) = SizedBuffer::allocate_vk_buffers(
+    let (src_memory, src_size, src_offsets) = super::allocate_vk_buffers(
       device,
-      source_vk_buffers,
+      &src_buffers,
       memory_properties,
       HOST_MEMORY_PROPERTY_FLAGS,
     );
-
-    let (dest_memory, dest_size, dests) = SizedBuffer::allocate_vk_buffers(
+    let (dst_memory, dst_size, dst_offsets) = super::allocate_vk_buffers(
       device,
-      dst_vk_buffers,
+      &dst_buffers,
       memory_properties,
       LOCAL_MEMORY_PROPERTY_FLAGS,
     );
-    if source_size != dest_size {
-      warn!("Costant buffer creation: source size is not equal to destination size");
-    }
-    for (source, dest) in sources.iter().zip(dests.iter()) {
-      assert_eq!(source.size, dest.size);
+    if src_size != dst_size {
+      // I don't know if this could happen or not
+      panic!("Costant buffer creation: source size is not equal to destination size");
     }
 
-    // TODO: copy everything at once
+    let (vec, inst_model_indices) = scene.objects();
+    let (inst_objs, inst_parts) = vec.deconstruct();
+    let inst_props = inst_model_indices
+      .into_iter()
+      .zip(inst_parts.iter())
+      .map(|(model_i, part)| InstProperties {
+        model_i,
+        inst_count: part.size as u32,
+        inst_offset: part.offset as u32,
+      })
+      .collect();
+    let inst_data: Vec<MatrixInstance> = inst_objs
+      .into_iter()
+      .map(|obj| MatrixInstance::new(obj.ren().model().clone()))
+      .collect();
+
+    // copy data into the source buffers (host memory)
+    // because the source buffer may be not continuous, data is copied buffer by buffer
+    // may need optimizations
     unsafe {
-      let data_ptr = device
-        .map_memory(
-          source_memory,
-          sources[0].offset,
-          vertex_size,
-          vk::MemoryMapFlags::empty(),
-        )
-        .expect("Failed to map memory") as *mut Vertex;
-      data_ptr.copy_from_nonoverlapping(vertices.as_ptr(), vertices.len());
-      device.unmap_memory(source_memory);
-
-      let data_ptr = device
-        .map_memory(
-          source_memory,
-          sources[1].offset,
-          index_size,
-          vk::MemoryMapFlags::empty(),
-        )
-        .expect("Failed to map memory") as *mut u16;
-      data_ptr.copy_from_nonoverlapping(indices.as_ptr(), indices.len());
-      device.unmap_memory(source_memory);
+      copy_into_mem!(device, src_memory, src_offsets[0], models.vertices, Vertex);
+      copy_into_mem!(device, src_memory, src_offsets[1], models.indices, u16);
+      copy_into_mem!(
+        device,
+        src_memory,
+        src_offsets[2],
+        inst_data,
+        MatrixInstance
+      );
     }
 
+    // copy data from source buffers into destination and deallocate the source memory
+    // instance destination buffer will be used as source for computations
     unsafe {
-      let operations: Vec<CopyBufferOperation> = sources
+      let operations: Vec<CopyBufferOperation> = src_buffers
         .iter()
-        .zip(dests.iter())
-        .map(|(source, dest)| CopyBufferOperation {
-          source_buffer: source.inner(),
-          dest_buffer: dest.inner(),
+        .zip(dst_buffers.iter())
+        .map(|((src_size, src), (_dst_size, dst))| CopyBufferOperation {
+          source_buffer: *src,
+          dest_buffer: *dst,
           copy_regions: vec![vk::BufferCopy {
             src_offset: 0,
             dst_offset: 0,
-            size: source.size,
+            size: *src_size,
           }],
         })
         .collect();
@@ -112,6 +153,7 @@ impl LocalConstantMemory {
         .record_copy_buffers(device, &operations);
     }
 
+    // fence copying has finished
     let finished = {
       let create_info = vk::FenceCreateInfo {
         s_type: vk::StructureType::FENCE_CREATE_INFO,
@@ -153,34 +195,35 @@ impl LocalConstantMemory {
       device.wait_for_fences(&[finished], true, u64::MAX).unwrap();
 
       device.destroy_fence(finished, None);
-      for mut source in sources.into_iter() {
-        source.destroy_self(device);
+      for (_, src) in src_buffers {
+        device.destroy_buffer(src, None);
       }
-      device.free_memory(source_memory, None);
+      device.free_memory(src_memory, None);
     }
 
-    let mut dests_iter = dests.into_iter();
-    let vertex = dests_iter.next().unwrap();
-    let index = dests_iter.next().unwrap();
+    let mut dsts_iter = dst_buffers.into_iter();
+    let vertex = dsts_iter.next().unwrap().1;
+    let index = dsts_iter.next().unwrap().1;
+    let inst = dsts_iter.next().unwrap().1;
 
     Self {
-      memory: dest_memory,
+      memory: dst_memory,
       vertex,
+      vertex_offset: dst_offsets[0],
       index,
+      index_offset: dst_offsets[1],
+      inst,
+      inst_offset: dst_offsets[2],
+      inst_size,
+      inst_count: inst_data.len() as u32,
+      inst_props,
     }
-  }
-
-  pub fn vertex(&self) -> vk::Buffer {
-    self.vertex.inner()
-  }
-
-  pub fn index(&self) -> vk::Buffer {
-    self.index.inner()
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    self.vertex.destroy_self(device);
-    self.index.destroy_self(device);
+    device.destroy_buffer(self.vertex, None);
+    device.destroy_buffer(self.index, None);
+    device.destroy_buffer(self.inst, None);
     device.free_memory(self.memory, None);
   }
 }

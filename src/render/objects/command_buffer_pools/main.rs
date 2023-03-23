@@ -2,7 +2,10 @@ use std::{ops::BitOr, ptr};
 
 use ash::vk;
 
-use crate::render::objects::{Buffers, Pipelines, QueueFamilyIndices};
+use crate::render::{
+  models::ModelProperties,
+  objects::{Buffers, InstProperties, Pipelines, QueueFamilyIndices},
+};
 
 pub struct MainCommandBufferPool {
   pool: vk::CommandPool,
@@ -31,8 +34,8 @@ impl MainCommandBufferPool {
     surface_extent: vk::Extent2D,
     pipelines: &Pipelines,
     buffers: &Buffers,
-    indices_len: u32,
-    instance_count: u32,
+    model_props: &Vec<ModelProperties>,
+    dyn_inst_props: &Vec<InstProperties>,
   ) {
     let command_buffer = self.command_buffers[i];
 
@@ -80,12 +83,44 @@ impl MainCommandBufferPool {
       vk::PipelineBindPoint::GRAPHICS,
       pipelines.graphics.main,
     );
-    let vertex_buffers = [buffers.vertex(), buffers.instance_dest(i)];
+    let vertex_buffers = [buffers.local_constant.vertex, buffers.local.inst[i].0];
     let offsets = [0_u64, 0];
 
     device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &offsets);
-    device.cmd_bind_index_buffer(command_buffer, buffers.index(), 0, vk::IndexType::UINT16);
-    device.cmd_draw_indexed(command_buffer, indices_len, instance_count, 0, 0, 0);
+    device.cmd_bind_index_buffer(
+      command_buffer,
+      buffers.local_constant.index,
+      0,
+      vk::IndexType::UINT16,
+    );
+
+    // draw static objects
+    for inst_p in buffers.local_constant.inst_props.iter() {
+      let model_p = &model_props[inst_p.model_i];
+      device.cmd_draw_indexed(
+        command_buffer,
+        model_p.index_count,
+        inst_p.inst_count,
+        model_p.index_offset,
+        model_p.vertex_offset,
+        inst_p.inst_offset,
+      )
+    }
+
+    // draw dynamic objects (same thing but with offset)
+    // I guess this will be better when I find out how to use indirect buffers
+    let static_inst_offset = buffers.local_constant.inst_count;
+    for inst_p in dyn_inst_props.iter() {
+      let model_p = &model_props[inst_p.model_i];
+      device.cmd_draw_indexed(
+        command_buffer,
+        model_p.index_count,
+        inst_p.inst_count,
+        model_p.index_offset,
+        model_p.vertex_offset,
+        static_inst_offset + inst_p.inst_offset,
+      )
+    }
 
     device.cmd_end_render_pass(command_buffer);
 

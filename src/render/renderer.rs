@@ -1,44 +1,30 @@
-use std::ffi::CString;
-
 use super::{
+  camera::RenderCamera,
+  models::ModelProperties,
   objects::{
-    self, Buffers, CameraPos, CommandBufferPools, DebugUtils, DescriptorSets, Pipelines,
-    QueueFamilyIndices, Queues, SquareInstance, Swapchains, Vertex,
+    self, Buffers, CommandBufferPools, DescriptorSets, InstProperties, Pipelines,
+    QueueFamilyIndices, Queues, Swapchains,
   },
-  ENABLE_VALIDATION_LAYERS, VALIDATION_LAYERS,
+  MatrixInstance, Models, DEVICE_EXTENSIONS,
 };
+
 use crate::{INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH, WINDOW_TITLE};
 use ash::vk;
 use winit::{event_loop::EventLoop, window::Window};
 
-const DEVICE_EXTENSIONS: [&'static str; 1] = ["VK_KHR_swapchain"];
-
-const VERTICES_DATA: [Vertex; 4] = [
-  Vertex {
-    pos: [-0.5, -0.5],
-    color: [1.0, 0.0, 0.0],
-  },
-  Vertex {
-    pos: [0.5, -0.5],
-    color: [0.0, 1.0, 0.0],
-  },
-  Vertex {
-    pos: [0.5, 0.5],
-    color: [0.0, 0.0, 1.0],
-  },
-  Vertex {
-    pos: [-1.0, 1.0],
-    color: [0.0, 0.0, 0.0],
-  },
-];
-
-const INDICES_DATA: [u16; 6] = [0, 1, 2, 2, 3, 0];
+#[cfg(feature = "vulkan_vl")]
+use super::{objects::DebugUtils, VALIDATION_LAYERS};
+#[cfg(feature = "vulkan_vl")]
+use log::info;
+#[cfg(feature = "vulkan_vl")]
+use std::ffi::{c_char, CStr};
 
 pub struct Renderer {
   _entry: ash::Entry,
   pub window: Window,
   instance: ash::Instance,
-  debug_utils: Option<DebugUtils>,
+  #[cfg(feature = "vulkan_vl")]
+  debug_utils: DebugUtils,
   physical_device: vk::PhysicalDevice,
   _queue_family_indices: QueueFamilyIndices,
   pub device: ash::Device,
@@ -52,33 +38,67 @@ pub struct Renderer {
   framebuffers: Vec<vk::Framebuffer>,
   pub command_buffer_pools: CommandBufferPools,
   buffers: Buffers,
+  model_props: Vec<ModelProperties>,
+}
+
+#[cfg(all(feature = "link_vulkan", feature = "load_vulkan"))]
+compile_error!("Cannot load and link Vulkan at the same time");
+
+#[allow(unreachable_code)]
+unsafe fn get_entry() -> ash::Entry {
+  #[cfg(feature = "link_vulkan")]
+  return ash::Entry::linked();
+  #[cfg(feature = "load_vulkan")]
+  return ash::Entry::load().expect("Failed to load entry");
+  panic!("No compile feature was included for accessing Vulkan");
+}
+
+#[cfg(feature = "vulkan_vl")]
+fn check_validation_layers_support(entry: &ash::Entry) -> Result<(), &'static CStr> {
+  let properties: Vec<vk::LayerProperties> = entry.enumerate_instance_layer_properties().unwrap();
+  let mut available: Vec<&CStr> = properties
+    .iter()
+    .map(|p| {
+      let i8slice: &[i8] = &p.layer_name;
+      let slice: &[u8] =
+        unsafe { std::slice::from_raw_parts(i8slice.as_ptr() as *const u8, i8slice.len()) };
+      CStr::from_bytes_until_nul(slice).expect("Failed to read system available validation layer")
+    })
+    .collect();
+  available.sort();
+
+  info!("System available validation layers: {:?}", available);
+
+  for name in VALIDATION_LAYERS {
+    if let Err(_) = available.binary_search_by(|&av| av.cmp(name)) {
+      return Err(name);
+    }
+  }
+  Ok(())
 }
 
 impl Renderer {
-  pub fn new(event_loop: &EventLoop<()>, max_instance_amount: u64) -> Self {
-    // init vulkan stuff
-    let entry = unsafe { ash::Entry::load().unwrap() };
+  pub fn new(event_loop: &EventLoop<()>, max_dyn_inst_count: u64) -> Self {
+    let entry: ash::Entry = unsafe { get_entry() };
 
-    let validation_layers: Option<Vec<std::ffi::CString>> = if ENABLE_VALIDATION_LAYERS {
-      check_validation_layers_support(&entry)
-        .unwrap_or_else(|name| panic!("The validation layer \"{name}\" was not found"));
-      Some(
-        VALIDATION_LAYERS
-          .iter()
-          .map(|name| CString::new(*name).unwrap())
-          .collect(),
-      )
-    } else {
-      None
-    };
+    #[cfg(feature = "vulkan_vl")]
+    check_validation_layers_support(&entry)
+      .unwrap_or_else(|name| panic!("The validation layer {:?} was not found", name));
+    #[cfg(feature = "vulkan_vl")]
+    let vl_pointers: Vec<*const c_char> =
+      VALIDATION_LAYERS.iter().map(|name| name.as_ptr()).collect();
+    #[cfg(feature = "vulkan_vl")]
+    let debug_create_info = DebugUtils::get_debug_messenger_create_info();
 
     let window = Self::init_window(event_loop);
-    let instance = objects::create_instance(&entry, &window, validation_layers.as_ref());
-    let debug_utils = if validation_layers != None {
-      Some(DebugUtils::setup(&entry, &instance))
-    } else {
-      None
-    };
+
+    #[cfg(feature = "vulkan_vl")]
+    let instance = objects::create_instance(&entry, &window, &vl_pointers, &debug_create_info);
+    #[cfg(not(feature = "vulkan_vl"))]
+    let instance = objects::create_instance(&entry, &window);
+
+    #[cfg(feature = "vulkan_vl")]
+    let debug_utils = DebugUtils::setup(&entry, &instance, debug_create_info);
 
     let (surface, surface_loader) = objects::create_surface(&entry, &instance, &window);
 
@@ -93,13 +113,23 @@ impl Renderer {
         &device_features,
       )
     };
+
+    #[cfg(feature = "vulkan_vl")]
     let (logical_device, queues) = objects::create_logical_device(
       &instance,
       &physical_device,
       &device_features,
       &device_extensions,
       &queue_family_indices,
-      validation_layers.as_ref(),
+      &vl_pointers,
+    );
+    #[cfg(not(feature = "vulkan_vl"))]
+    let (logical_device, queues) = objects::create_logical_device(
+      &instance,
+      &physical_device,
+      &device_features,
+      &device_extensions,
+      &queue_family_indices,
     );
 
     let swapchains = Swapchains::new(
@@ -113,7 +143,7 @@ impl Renderer {
 
     let render_pass = objects::create_render_pass(&logical_device, swapchains.get_format());
 
-    let descriptor_sets = DescriptorSets::new(&logical_device);
+    let mut descriptor_sets = DescriptorSets::new(&logical_device);
 
     let pipelines = Pipelines::new(
       &logical_device,
@@ -129,10 +159,9 @@ impl Renderer {
       &swapchains.get_extent(),
     );
 
-    let vertices = Vec::from(VERTICES_DATA);
-    let indices = Vec::from(INDICES_DATA);
     let mut command_buffer_pools =
       CommandBufferPools::create(&logical_device, &queue_family_indices);
+    let models = Models::load();
     let buffers = Buffers::create(
       &instance,
       &logical_device,
@@ -140,15 +169,19 @@ impl Renderer {
       &queue_family_indices,
       &queues,
       &mut command_buffer_pools,
-      &vertices,
-      &indices,
-      max_instance_amount,
+      &models,
+      max_dyn_inst_count,
     );
+
+    descriptor_sets
+      .pool
+      .update_all_inst_static(&logical_device, &buffers);
 
     Self {
       _entry: entry,
       window,
       instance,
+      #[cfg(feature = "vulkan_vl")]
       debug_utils,
       physical_device,
       _queue_family_indices: queue_family_indices,
@@ -163,6 +196,7 @@ impl Renderer {
       buffers,
       command_buffer_pools,
       descriptor_sets,
+      model_props: models.into_properties(),
     }
   }
 
@@ -181,7 +215,7 @@ impl Renderer {
     &mut self,
     i: usize,
     framebuffer_i: usize,
-    instances_len: u32,
+    dyn_inst_props: &Vec<InstProperties>,
   ) {
     self.command_buffer_pools.main.record(
       i,
@@ -191,28 +225,44 @@ impl Renderer {
       self.swapchains.get_extent(),
       &self.pipelines,
       &self.buffers,
-      INDICES_DATA.len() as u32,
-      instances_len,
+      &self.model_props,
+      dyn_inst_props,
     );
   }
 
-  pub unsafe fn record_instance_compute_command_buffer(
+  pub unsafe fn record_inst_static_comm_buffer(&mut self, i: usize, camera: &RenderCamera) {
+    self.command_buffer_pools.compute.record_inst_static(
+      i,
+      &self.device,
+      &self.pipelines,
+      &self.buffers,
+      &self.descriptor_sets,
+      &camera.projection_view(),
+    );
+  }
+
+  pub unsafe fn record_inst_dyn_comm_buffer(
     &mut self,
     i: usize,
-    instance_count: u32,
-    camera_pos: &CameraPos,
+    camera: &RenderCamera,
+    dyn_inst_count: u32,
   ) {
-    self.command_buffer_pools.compute.record_instance(
+    self.command_buffer_pools.compute.record_inst_dyn(
       i,
       &self.device,
       &self.pipelines,
       &self.descriptor_sets,
-      instance_count,
-      camera_pos,
+      &camera.projection_view(),
+      dyn_inst_count,
     )
   }
 
-  pub unsafe fn update_instance_data(&mut self, i: usize, data: &Vec<SquareInstance>) {
+  pub fn get_aspect_ratio(&self) -> f32 {
+    let window_size = self.window.inner_size();
+    window_size.width as f32 / window_size.height as f32
+  }
+
+  pub unsafe fn update_instance_data(&mut self, i: usize, data: &Vec<MatrixInstance>) {
     self.buffers.update_instance_data(i, &self.device, data);
   }
 
@@ -238,7 +288,6 @@ impl Renderer {
     // currenty the code waits for the old swapchain to finish rendering before recreating its dependencies
     // maybe there is a way to make it continue working while already preparing to acquire and present at the new swapchain
     // however, marking render_pass and pipeline as "old" and creating new ones seems quite bothersome and not right
-    // also, kinda half baked
 
     // old swapchain becomes retired
     let changes = self.swapchains.recreate_swapchain(
@@ -280,13 +329,11 @@ impl Renderer {
     );
   }
 
-  pub fn update_instance_compute_descriptor_set(&mut self, i: usize, instance_count: u64) {
-    self.descriptor_sets.pool.update_instance_compute(
-      i,
-      &self.device,
-      &self.buffers,
-      instance_count,
-    );
+  pub fn update_inst_dyn_descriptor_set(&mut self, i: usize, dyn_inst_count: u64) {
+    self
+      .descriptor_sets
+      .pool
+      .update_inst_dyn(i, &self.device, &self.buffers, dyn_inst_count);
   }
 }
 
@@ -304,31 +351,9 @@ impl Drop for Renderer {
       self.swapchains.destroy_self(&self.device);
       self.device.destroy_device(None);
       self.surface_loader.destroy_surface(self.surface, None);
-      if let Some(utils) = &mut self.debug_utils {
-        utils.destroy_self();
-      }
+      #[cfg(feature = "vulkan_vl")]
+      self.debug_utils.destroy_self();
       self.instance.destroy_instance(None);
     }
   }
-}
-
-fn check_validation_layers_support(entry: &ash::Entry) -> Result<(), &'static str> {
-  let mut available: Vec<&str> = entry
-    .enumerate_instance_layer_properties()
-    .unwrap()
-    .iter()
-    .map(|x| {
-      let rust_id = unsafe { std::ffi::CStr::from_ptr(x.layer_name.as_ptr()) };
-      // println!("{:?}", rust_id);  // print installed validation layer names
-      rust_id.to_str().unwrap()
-    })
-    .collect();
-  available.sort();
-
-  for name in VALIDATION_LAYERS {
-    if let Err(_) = available.binary_search(&name) {
-      return Err(name);
-    }
-  }
-  Ok(())
 }

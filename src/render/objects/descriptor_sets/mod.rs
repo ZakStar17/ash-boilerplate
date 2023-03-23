@@ -1,3 +1,5 @@
+use log::debug;
+
 use self::{layouts::DescriptorSetLayouts, pool::DescriptorSetPool};
 
 mod layouts;
@@ -10,7 +12,9 @@ pub struct DescriptorSets {
 
 impl DescriptorSets {
   pub fn new(device: &ash::Device) -> Self {
+    debug!("Creating descriptor set layouts");
     let layouts = DescriptorSetLayouts::new(device);
+    debug!("Creating descriptor set pool");
     let pool = DescriptorSetPool::new(device, &layouts);
     Self { layouts, pool }
   }

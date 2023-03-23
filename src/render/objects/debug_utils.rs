@@ -1,4 +1,4 @@
-use ash::vk;
+use ash::vk::{self, DebugUtilsMessengerCreateInfoEXT};
 use log::{debug, error, info, warn};
 use std::{ffi::CStr, os::raw::c_void, ptr};
 
@@ -33,10 +33,12 @@ pub struct DebugUtils {
 }
 
 impl DebugUtils {
-  pub fn setup(entry: &ash::Entry, instance: &ash::Instance) -> Self {
+  pub fn setup(
+    entry: &ash::Entry,
+    instance: &ash::Instance,
+    create_info: DebugUtilsMessengerCreateInfoEXT,
+  ) -> Self {
     let loader = ash::extensions::ext::DebugUtils::new(entry, instance);
-
-    let create_info = Self::get_debug_messenger_create_info();
 
     info!("Creating debug utils messenger");
     let messenger = unsafe {
