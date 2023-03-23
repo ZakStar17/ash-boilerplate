@@ -1,5 +1,5 @@
 use crate::structures::partition::Partition;
-use std::{ops::Index, slice::Iter, vec::IntoIter};
+use std::{ops::Index, vec::IntoIter};
 
 macro_rules! sized_flatten {
   ($x:expr, $s:ty) => {{
@@ -43,6 +43,7 @@ pub struct Linear2dVec<T> {
 }
 
 impl<T> Linear2dVec<T> {
+  #[allow(dead_code)]
   pub fn from_vec(v: Vec<Vec<T>>) -> Self {
     let (data, parts) = sized_flatten!(v, usize);
     Self { data, parts }
@@ -52,24 +53,8 @@ impl<T> Linear2dVec<T> {
     self.data.len()
   }
 
-  pub fn sizes<'a>(&'a self) -> SizesIter<'a, T> {
-    SizesIter { vec: &self, i: 0 }
-  }
-
-  pub fn offset(&self, i: usize) -> usize {
-    self.parts[i].offset
-  }
-
   pub fn part(&self, i: usize) -> Partition<usize> {
     self.parts[i]
-  }
-
-  pub fn parts(&self) -> &Vec<Partition<usize>> {
-    &self.parts
-  }
-
-  pub fn parts_iter(&self) -> Iter<Partition<usize>> {
-    self.parts.iter()
   }
 
   pub fn into_parts_iter(self) -> IntoIter<Partition<usize>> {
@@ -78,10 +63,6 @@ impl<T> Linear2dVec<T> {
 
   pub fn as_ptr(&self) -> *const T {
     self.data.as_ptr()
-  }
-
-  pub fn iter(&self) -> Iter<'_, T> {
-    self.data.iter()
   }
 
   pub fn deconstruct(self) -> (Vec<T>, Vec<Partition<usize>>) {

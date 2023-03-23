@@ -11,7 +11,7 @@ use winit::{
 use crate::{
   keys::{Keys, Pressed},
   objects::Square,
-  render::{Camera, SyncRender},
+  render::{Camera, RenderableIn3d, SyncRender},
 };
 
 const MAX_SQUARE_AMOUNT: usize = 8;
@@ -126,6 +126,16 @@ impl App {
       } else {
         self.render.camera.move_down(&duration_since_last_frame)
       }
+    }
+    for square in self.squares.iter_mut() {
+      let ren = square.ren_mut();
+      let rot = ren.rotation();
+      let mut rng = rand::thread_rng();
+      ren.rotate(Euler {
+        x: rot.x + Rad(rng.gen::<f32>() / 100.0),
+        y: rot.y + Rad(rng.gen::<f32>() / 100.0),
+        z: rot.z + Rad(rng.gen::<f32>() / 100.0),
+      });
     }
 
     self

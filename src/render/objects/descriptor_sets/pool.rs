@@ -122,7 +122,7 @@ impl DescriptorSetPool {
     let buffer_info_dest = vk::DescriptorBufferInfo {
       buffer: buffers.local.inst[i].0,
       offset: static_size,
-      range: static_size + dyn_size,
+      range: dyn_size,
     };
 
     let source = vk::WriteDescriptorSet {

@@ -1,4 +1,5 @@
 use ash::vk;
+use log::debug;
 use std::mem::MaybeUninit;
 
 use crate::render::{
@@ -22,9 +23,14 @@ impl LocalMemory {
     memory_properties: vk::PhysicalDeviceMemoryProperties,
     queue_families: &QueueFamilyIndices,
     static_inst_count: u64,
-    max_dyn_inst_count: u64
+    max_dyn_inst_count: u64,
   ) -> Self {
-    let inst_size = std::mem::size_of::<MatrixInstance>() as u64 * (static_inst_count + max_dyn_inst_count);
+    debug!(
+      "Creating local instance buffer with {} static and {} dynamic count",
+      static_inst_count, max_dyn_inst_count
+    );
+    let inst_size =
+      std::mem::size_of::<MatrixInstance>() as u64 * (static_inst_count + max_dyn_inst_count);
 
     let inst_usages: Vec<_> = std::iter::repeat((inst_size, VERTEX_STORAGE_DST_USAGE))
       .take(FRAMES_IN_FLIGHT)

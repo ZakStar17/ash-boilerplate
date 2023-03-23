@@ -1,11 +1,6 @@
-use cgmath::{Euler, Matrix4, Point3, Rad};
+use cgmath::{Euler, Point3, Rad};
 
-use crate::render::{Models, Renderable3dObject};
-
-pub trait RenderableIn3d {
-  fn obj(&self) -> &Renderable3dObject;
-  fn into_obj(self) -> Renderable3dObject;
-}
+use crate::render::{Models, Renderable3dObject, RenderableIn3d};
 
 pub struct Square {
   render: Renderable3dObject,
@@ -25,36 +20,46 @@ impl Square {
       render: Renderable3dObject::new(position),
     }
   }
-
-  pub fn model(&self) -> &Matrix4<f32> {
-    self.render.model()
-  }
 }
 
 impl RenderableIn3d for Square {
-  fn obj(&self) -> &Renderable3dObject {
+  fn ren(&self) -> &Renderable3dObject {
     &self.render
   }
 
-  fn into_obj(self) -> Renderable3dObject {
+  fn into_ren(self) -> Renderable3dObject {
     self.render
+  }
+
+  fn ren_mut(&mut self) -> &mut Renderable3dObject {
+    &mut self.render
   }
 }
 
 pub struct Cube {
-  render: Renderable3dObject,
+  pub render: Renderable3dObject,
 }
 
 impl Cube {
   pub const MODEL_INDEX: usize = 1;
+
+  pub fn new(position: Point3<f32>) -> Self {
+    Self {
+      render: Renderable3dObject::new(position),
+    }
+  }
 }
 
 impl RenderableIn3d for Cube {
-  fn obj(&self) -> &Renderable3dObject {
+  fn ren(&self) -> &Renderable3dObject {
     &self.render
   }
 
-  fn into_obj(self) -> Renderable3dObject {
+  fn into_ren(self) -> Renderable3dObject {
     self.render
+  }
+
+  fn ren_mut(&mut self) -> &mut Renderable3dObject {
+    &mut self.render
   }
 }

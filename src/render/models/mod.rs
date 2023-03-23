@@ -45,7 +45,10 @@ impl Models {
   }
 
   fn load_indices() -> Linear2dVec<u16> {
-    let indices = [weird_square::WeirdSquare::get_indices(), cube::Cube::get_indices()];
+    let indices = [
+      weird_square::WeirdSquare::get_indices(),
+      cube::Cube::get_indices(),
+    ];
 
     let mut iter = indices.into_iter();
     let iter: &mut dyn ExactSizeIterator<Item = Vec<u16>> = &mut iter;

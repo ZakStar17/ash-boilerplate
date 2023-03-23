@@ -46,6 +46,7 @@ macro_rules! iter_into_array {
   }};
 }
 
+#[allow(dead_code)]
 macro_rules! vec_to_array {
   ($x:expr, $size:expr) => {{
     let mut tmp: [MaybeUninit<_>; $size] = unsafe { MaybeUninit::uninit().assume_init() };

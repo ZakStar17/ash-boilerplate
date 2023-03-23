@@ -94,7 +94,6 @@ impl MainCommandBufferPool {
       vk::IndexType::UINT16,
     );
 
-    println!("{:?}", model_props);
     // draw static objects
     for inst_p in buffers.local_constant.inst_props.iter() {
       let model_p = &model_props[inst_p.model_i];

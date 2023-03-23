@@ -1,5 +1,11 @@
 use cgmath::{EuclideanSpace, Euler, Matrix4, Point3, Rad, Vector3};
 
+pub trait RenderableIn3d {
+  fn ren(&self) -> &Renderable3dObject;
+  fn into_ren(self) -> Renderable3dObject;
+  fn ren_mut(&mut self) -> &mut Renderable3dObject;
+}
+
 /// Object information suitable for rendering in 3D. Caches certain matrices
 /// in order to perform less calculations while rendering.
 #[derive(Debug, Clone)]
@@ -57,48 +63,57 @@ impl Renderable3dObject {
     &self.model_matrix
   }
 
+  #[allow(dead_code)]
   pub fn position(&self) -> &Point3<f32> {
     &self.position
   }
 
+  #[allow(dead_code)]
   pub fn rotation(&self) -> &Euler<Rad<f32>> {
     &self.rotation
   }
 
+  #[allow(dead_code)]
   pub fn scale(&self) -> f32 {
     self.scale
   }
 
+  #[allow(dead_code)]
   pub fn move_relative(&mut self, rel: Vector3<f32>) {
     self.position += rel;
     self.update_translation_matrix();
     self.update_model_matrix();
   }
 
+  #[allow(dead_code)]
   pub fn move_relative_x(&mut self, relative_x: f32) {
     self.position.x += relative_x;
     self.update_translation_matrix();
     self.update_model_matrix();
   }
 
+  #[allow(dead_code)]
   pub fn move_relative_y(&mut self, relative_y: f32) {
     self.position.y += relative_y;
     self.update_translation_matrix();
     self.update_model_matrix();
   }
 
+  #[allow(dead_code)]
   pub fn move_relative_z(&mut self, relative_z: f32) {
     self.position.z += relative_z;
     self.update_translation_matrix();
     self.update_model_matrix();
   }
 
+  #[allow(dead_code)]
   pub fn r#move(&mut self, new_position: Point3<f32>) {
     self.position = new_position;
     self.update_translation_matrix();
     self.update_model_matrix();
   }
 
+  #[allow(dead_code)]
   pub fn rotate(&mut self, new_rotation: Euler<Rad<f32>>) {
     self.rotation = new_rotation;
     self.update_rotation_matrix();
@@ -111,6 +126,7 @@ impl Renderable3dObject {
     self.update_model_matrix();
   }
 
+  #[allow(dead_code)]
   pub fn move_and_rotate(&mut self, new_position: Point3<f32>, new_rotation: Euler<Rad<f32>>) {
     self.position = new_position;
     self.rotation = new_rotation;
@@ -119,6 +135,7 @@ impl Renderable3dObject {
     self.update_model_matrix();
   }
 
+  #[allow(dead_code)]
   pub fn update(
     &mut self,
     new_position: Point3<f32>,
@@ -138,6 +155,7 @@ impl Renderable3dObject {
     self.translation_matrix = Matrix4::from_translation(self.position.to_vec());
   }
 
+  #[allow(dead_code)]
   fn update_rotation_matrix(&mut self) {
     self.rotation_matrix = Matrix4::from(self.rotation);
   }

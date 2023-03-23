@@ -14,7 +14,7 @@ use super::{
   cursor::Cursor,
   objects::InstProperties,
   renderer::Renderer,
-  MatrixInstance,
+  MatrixInstance, RenderableIn3d,
 };
 
 // only 2 will work
@@ -96,7 +96,7 @@ impl FPSCounter {
   pub fn try_print(&mut self, time_passed: &Duration) {
     self.last_print_elapsed_time += *time_passed;
     if self.last_print_elapsed_time > FPS_PRINT_INTERVAL {
-      info!(
+      println!(
         "Current fps: {}",
         1000000.0 / (time_passed.as_micros() as f64)
       );
@@ -308,7 +308,7 @@ impl SyncRender {
     // todo: needs refinement / optimizations
     let square_instances: Vec<MatrixInstance> = squares
       .iter()
-      .map(|sq| MatrixInstance::new(*sq.model()))
+      .map(|sq| MatrixInstance::new(*sq.ren().model()))
       .collect();
     let dyn_inst_props = vec![InstProperties {
       inst_count: squares.len() as u32,
@@ -415,6 +415,7 @@ impl SyncRender {
     let wait_semaphores = [];
     let wait_stages = [];
     let signal_semaphores = [cur_frame.instance_compute_finished];
+    // in theory these can be changed to execute on different queues (concurrently)
     let command_buffers = [
       self.renderer.command_buffer_pools.compute.inst_static[cur_frame_i],
       self.renderer.command_buffer_pools.compute.inst_dyn[cur_frame_i],
@@ -441,8 +442,6 @@ impl SyncRender {
         )
         .expect("failed to execute queue submit");
     }
-
-    panic!();
 
     // std::thread::sleep(std::time::Duration::from_millis(5000));
     // unsafe {

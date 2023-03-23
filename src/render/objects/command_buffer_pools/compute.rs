@@ -97,7 +97,7 @@ impl ComputeCommandBufferPool {
     projection_view: &Matrix4<f32>,
     dyn_inst_count: u32,
   ) {
-    let cb = self.inst_static[i];
+    let cb = self.inst_dyn[i];
     device
       .reset_command_buffer(cb, vk::CommandBufferResetFlags::empty())
       .expect("Failed to reset instance compute command buffer");

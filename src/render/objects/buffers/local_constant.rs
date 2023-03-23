@@ -114,7 +114,7 @@ impl LocalConstantMemory {
       .collect();
     let inst_data: Vec<MatrixInstance> = inst_objs
       .into_iter()
-      .map(|ren| MatrixInstance::new(ren.obj().model().clone()))
+      .map(|obj| MatrixInstance::new(obj.ren().model().clone()))
       .collect();
 
     // copy data into the source buffers (host memory)

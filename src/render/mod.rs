@@ -27,5 +27,5 @@ pub const DEVICE_EXTENSIONS: [&'static str; 1] = ["VK_KHR_swapchain"];
 pub use camera::Camera;
 pub use models::Models;
 pub use objects::MatrixInstance;
-pub use renderable_3d::Renderable3dObject;
+pub use renderable_3d::{Renderable3dObject, RenderableIn3d};
 pub use sync::SyncRender;
