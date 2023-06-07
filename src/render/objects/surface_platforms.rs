@@ -7,8 +7,6 @@ use ash::extensions::khr::XlibSurface;
 #[cfg(target_os = "macos")]
 use ash::extensions::mvk::MacOSSurface;
 
-use ash::extensions::{ext::DebugUtils, khr::Surface};
-
 #[cfg(target_os = "macos")]
 use cocoa::appkit::{NSView, NSWindow};
 #[cfg(target_os = "macos")]
@@ -37,14 +35,6 @@ pub fn required_extension_names() -> Vec<*const i8> {
   ]
 }
 
-#[cfg(all(unix, not(target_os = "android"), not(target_os = "macos")))]
-pub fn required_extension_names() -> Vec<*const i8> {
-  vec![
-    Surface::name().as_ptr(),
-    XlibSurface::name().as_ptr(),
-    DebugUtils::name().as_ptr(),
-  ]
-}
 // ------------------------------------------------------------------------
 
 // create surface ---------------------------------------------------------
@@ -55,7 +45,7 @@ pub unsafe fn create_surface(
   window: &winit::window::Window,
 ) -> Result<vk::SurfaceKHR, vk::Result> {
   use std::ptr;
-  use winit::platform::unix::WindowExtUnix;
+  use winit::platform::x11::WindowExtX11;
 
   let x11_display = window.xlib_display().unwrap();
   let x11_window = window.xlib_window().unwrap();

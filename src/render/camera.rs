@@ -88,14 +88,6 @@ impl RenderCamera {
     self.camera.position
   }
 
-  pub fn yaw(&self) -> f32 {
-    self.camera.yaw
-  }
-
-  pub fn pitch(&self) -> f32 {
-    self.camera.pitch
-  }
-
   pub fn view_matrix(&self) -> Matrix4<f32> {
     Matrix4::look_at_rh(self.camera.position, self.camera.position + self.front, UP)
   }

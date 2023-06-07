@@ -117,7 +117,7 @@ impl Swapchains {
 
 struct Swapchain {
   obj: vk::SwapchainKHR,
-  pub images: Vec<vk::Image>,
+  pub _images: Vec<vk::Image>,
   pub format: vk::Format,
   pub extent: vk::Extent2D,
   pub image_views: Vec<vk::ImageView>,
@@ -192,7 +192,7 @@ impl Swapchain {
 
     Self {
       obj: swapchain,
-      images,
+      _images: images,
       format: image_format.format,
       extent,
       image_views,
@@ -269,7 +269,7 @@ impl Swapchain {
 
     let mut old = Self {
       obj: swapchain,
-      images,
+      _images: images,
       format: image_format.format,
       extent,
       image_views,

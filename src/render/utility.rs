@@ -46,7 +46,7 @@ macro_rules! iter_into_array {
   }};
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, unused_macros)]
 macro_rules! vec_to_array {
   ($x:expr, $size:expr) => {{
     let mut tmp: [MaybeUninit<_>; $size] = unsafe { MaybeUninit::uninit().assume_init() };
@@ -65,4 +65,5 @@ macro_rules! vec_to_array {
 }
 
 pub(crate) use iter_into_array;
+#[allow(unused_imports)]
 pub(crate) use vec_to_array;

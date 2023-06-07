@@ -28,7 +28,7 @@ pub struct App {
 impl App {
   pub fn new(event_loop: &EventLoop<()>) -> Self {
     let objects = vec![Niko::from_full(
-      Point3::new(-0.5, -0.5, 0.0),
+      Point3::new(-0.5, 0.0, 0.5),
       Euler::new(Rad(0.0), Rad(0.0), Rad(0.0)),
       0.1,
     )];
@@ -55,7 +55,7 @@ impl App {
             let mut rng = rand::thread_rng();
             let size = rng.gen::<f32>() * 0.2 + 0.05;
             let pos =
-              self.render.camera.position() + (self.render.camera.front() * (2.0 + (size * 3.0)));
+              self.render.camera.position() + (self.render.camera.front() * (2.0 + (size * 5.0)));
             self.objects.push(Niko::from_full(
               pos,
               Euler::new(Rad(0.0), Rad(0.0), Rad(0.0)),

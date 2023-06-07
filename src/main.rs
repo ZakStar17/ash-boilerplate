@@ -1,4 +1,3 @@
-#![feature(cstr_from_bytes_until_nul)]
 #![feature(iter_next_chunk)]
 
 mod app;

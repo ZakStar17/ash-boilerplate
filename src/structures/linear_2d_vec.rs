@@ -53,10 +53,6 @@ impl<T> Linear2dVec<T> {
     self.data.len()
   }
 
-  pub fn part(&self, i: usize) -> Partition<usize> {
-    self.parts[i]
-  }
-
   pub fn into_parts_iter(self) -> IntoIter<Partition<usize>> {
     self.parts.into_iter()
   }
