@@ -91,13 +91,18 @@ fn allocate_vk_buffers(
   for (_, buffer) in buffers.iter() {
     let mem_requirements = unsafe { device.get_buffer_memory_requirements(*buffer) };
     buffer_requirements_bits |= mem_requirements.memory_type_bits;
-    if alignment == 0 {
-      alignment = mem_requirements.alignment;
-    } else {
-      alignment = alignment.lcm(&mem_requirements.alignment);
-    }
+
+    // the specification guarantees that the algignment is a power of 2
+    #[cfg(debug_assertions)]
+    assert!(
+      mem_requirements.alignment > 0
+        && (mem_requirements.alignment & (mem_requirements.alignment - 1)) == 0
+    );
+    alignment = alignment.max(mem_requirements.alignment);
+
     full_sizes.push(mem_requirements.size);
   }
+  // align each internal buffer
   let mut total_size = 0;
   let mut offsets = Vec::with_capacity(buffers.len());
   for size in full_sizes.iter() {
@@ -115,6 +120,7 @@ fn allocate_vk_buffers(
     memory_type_index: memory_type,
   };
 
+  debug!("Allocating buffer memory");
   let buffer_memory = unsafe {
     device
       .allocate_memory(&allocate_info, None)

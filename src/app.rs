@@ -10,7 +10,7 @@ use winit::{
 
 use crate::{
   keys::{Keys, Pressed},
-  objects::{Niko},
+  objects::Niko,
   render::{Camera, RenderableIn3d, SyncRender},
 };
 
@@ -51,6 +51,7 @@ impl App {
         }
         (VirtualKeyCode::Q, ElementState::Released) => {
           // all just a placeholder for now
+          // TODO: implement dynamic allocation buffers
           if self.objects.len() < MAX_DYN_OBJ_AMOUNT {
             let mut rng = rand::thread_rng();
             let size = rng.gen::<f32>() * 0.2 + 0.05;

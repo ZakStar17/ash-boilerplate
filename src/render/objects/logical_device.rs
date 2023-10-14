@@ -47,6 +47,8 @@ pub fn create_logical_device(
     device_extensions_c.iter().map(|s| s.as_ptr()).collect();
 
   #[allow(unused_mut)]
+  #[allow(deprecated)]
+  // pp_enabled_layer_names are deprecated however they are still required in struct initialization
   let mut create_info = vk::DeviceCreateInfo {
     s_type: vk::StructureType::DEVICE_CREATE_INFO,
     p_queue_create_infos: queues_create_info.as_ptr(),
@@ -61,6 +63,7 @@ pub fn create_logical_device(
   };
 
   #[cfg(feature = "vulkan_vl")]
+  #[allow(deprecated)]
   {
     create_info.pp_enabled_layer_names = vl_pointers.as_ptr();
     create_info.enabled_layer_count = vl_pointers.len() as u32;

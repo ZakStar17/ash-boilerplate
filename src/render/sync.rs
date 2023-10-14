@@ -24,7 +24,7 @@ use super::{
 pub const FRAMES_IN_FLIGHT: usize = 2;
 
 pub const INITIAL_CAMERA_FOV: f32 = 0.8;
-pub const CAMERA_SENTIVITY: f32 = 0.003;
+pub const CAMERA_SENTIVITY: f32 = 0.0003;
 
 struct Frame {
   pub image_available: vk::Semaphore,
@@ -352,7 +352,7 @@ impl SyncRender {
         .renderer
         .device
         .reset_fences(&[cur_frame.finished])
-        .expect("failed to reset fence");
+        .expect("Failed to reset fence");
     }
 
     let wait_elapsed = wait_start.elapsed();
