@@ -15,13 +15,13 @@ impl Model for Niko {
     let input = BufReader::new(
       File::open("./assets/models/niko/niko.obj").expect("Failed to open custom model file"),
     );
-    let obj: Obj = load_obj(input).expect("Failed to load custom model");
+    let obj: Obj<obj::TexturedVertex, u16> = load_obj(input).expect("Failed to load custom model");
     let vertices = obj
       .vertices
       .into_iter()
       .map(|v| Vertex {
         pos: v.position,
-        color: [0.0, 0.0, 0.8],
+        color: v.texture,
       })
       .collect();
     info!("Loaded custom model in {:?}", start.elapsed());

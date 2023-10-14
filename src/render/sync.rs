@@ -290,9 +290,9 @@ impl SyncRender {
 
   pub fn render_next_frame(&mut self, time_since_last_frame: &Duration, dyn_objects: &Vec<Niko>) {
     let s = Duration::from_secs_f32(1.0 / 60.0);
-    if time_since_last_frame < &s {
-      std::thread::sleep(s - *time_since_last_frame);
-    }
+    // if time_since_last_frame < &s {
+    //   std::thread::sleep(s - *time_since_last_frame);
+    // }
     if self.updated_aspect_ratio {
       self
         .camera

@@ -6,7 +6,6 @@ use std::ptr;
 
 use ash::vk;
 use log::debug;
-use num::Integer;
 
 use crate::render::Models;
 
@@ -37,10 +36,6 @@ macro_rules! memory_property_flags {
     };
 }
 
-pub const VERTEX_SRC_USAGE: vk::BufferUsageFlags = buffer_usage!(
-  vk::BufferUsageFlags::VERTEX_BUFFER,
-  vk::BufferUsageFlags::TRANSFER_SRC
-);
 pub const VERTEX_DST_USAGE: vk::BufferUsageFlags = buffer_usage!(
   vk::BufferUsageFlags::VERTEX_BUFFER,
   vk::BufferUsageFlags::TRANSFER_DST
@@ -58,10 +53,6 @@ pub const STORAGE_USAGE: vk::BufferUsageFlags = buffer_usage!(
   vk::BufferUsageFlags::STORAGE_BUFFER
 );
 
-pub const INDEX_SRC_USAGE: vk::BufferUsageFlags = buffer_usage!(
-  vk::BufferUsageFlags::INDEX_BUFFER,
-  vk::BufferUsageFlags::TRANSFER_SRC
-);
 pub const INDEX_DST_USAGE: vk::BufferUsageFlags = buffer_usage!(
   vk::BufferUsageFlags::INDEX_BUFFER,
   vk::BufferUsageFlags::TRANSFER_DST

@@ -14,9 +14,8 @@ use crate::{
 };
 
 use super::{
-  create_travel_buffers, HOST_MEMORY_PROPERTY_FLAGS, INDEX_DST_USAGE, INDEX_SRC_USAGE,
-  LOCAL_MEMORY_PROPERTY_FLAGS, STORAGE_SRC_USAGE, STORAGE_USAGE, VERTEX_DST_USAGE,
-  VERTEX_SRC_USAGE,
+  create_travel_buffers, HOST_MEMORY_PROPERTY_FLAGS, INDEX_DST_USAGE, LOCAL_MEMORY_PROPERTY_FLAGS,
+  STORAGE_USAGE, VERTEX_DST_USAGE,
 };
 
 // holds model information and static objects
@@ -69,9 +68,17 @@ impl LocalConstantMemory {
       device,
       queue_families,
       vec![
-        (vertex_size, VERTEX_SRC_USAGE, VERTEX_DST_USAGE),
-        (index_size, INDEX_SRC_USAGE, INDEX_DST_USAGE),
-        (inst_size, STORAGE_SRC_USAGE, STORAGE_USAGE),
+        (
+          vertex_size,
+          vk::BufferUsageFlags::TRANSFER_SRC,
+          VERTEX_DST_USAGE,
+        ),
+        (
+          index_size,
+          vk::BufferUsageFlags::TRANSFER_SRC,
+          INDEX_DST_USAGE,
+        ),
+        (inst_size, vk::BufferUsageFlags::TRANSFER_SRC, STORAGE_USAGE),
       ],
     );
 

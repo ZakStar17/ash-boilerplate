@@ -20,7 +20,7 @@ pub const WINDOW_TITLE: &'static str = "Ash boilerplate";
 pub const INITIAL_WINDOW_WIDTH: u32 = 800;
 pub const INITIAL_WINDOW_HEIGHT: u32 = 600;
 
-pub const ENABLE_VSYNC: bool = false;
+pub const ENABLE_VSYNC: bool = true;
 
 pub const PRINT_FPS: bool = true;
 pub const FPS_PRINT_INTERVAL: Duration = Duration::from_millis(2000);
