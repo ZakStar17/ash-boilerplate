@@ -1,24 +1,24 @@
-use crate::render::objects::Vertex;
+use crate::render::objects::ColorVertex;
 
 use super::Model;
 
 pub struct WeirdSquare {}
 
 impl WeirdSquare {
-  const VERTICES: [Vertex; 4] = [
-    Vertex {
+  const VERTICES: [ColorVertex; 4] = [
+    ColorVertex {
       pos: [-0.5, -0.5, 0.0],
       color: [1.0, 0.0, 0.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [0.5, -0.5, 0.0],
       color: [0.0, 1.0, 0.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [0.5, 0.5, 0.0],
       color: [0.0, 0.0, 1.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [-1.0, 1.0, 0.0],
       color: [0.0, 0.0, 0.0],
     },
@@ -28,7 +28,7 @@ impl WeirdSquare {
 }
 
 impl Model for WeirdSquare {
-  fn load() -> (Vec<Vertex>, Vec<u16>) {
+  fn load() -> (Vec<ColorVertex>, Vec<u16>) {
     (Self::VERTICES.to_vec(), Self::INDICES.to_vec())
   }
 }

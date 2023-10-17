@@ -1,40 +1,40 @@
-use crate::render::objects::Vertex;
+use crate::render::objects::ColorVertex;
 
 use super::Model;
 
 pub struct Cube {}
 
 impl Cube {
-  const VERTICES: [Vertex; 8] = [
-    Vertex {
+  const VERTICES: [ColorVertex; 8] = [
+    ColorVertex {
       pos: [-1.0, -1.0, -1.0],
       color: [1.0, 1.0, 1.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [1.0, -1.0, -1.0],
       color: [1.0, 1.0, 1.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [1.0, 1.0, -1.0],
       color: [1.0, 1.0, 1.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [-1.0, 1.0, -1.0],
       color: [1.0, 1.0, 1.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [-1.0, -1.0, 1.0],
       color: [1.0, 1.0, 1.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [1.0, -1.0, 1.0],
       color: [1.0, 1.0, 1.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [1.0, 1.0, 1.0],
       color: [1.0, 1.0, 1.0],
     },
-    Vertex {
+    ColorVertex {
       pos: [-1.0, 1.0, 1.0],
       color: [1.0, 1.0, 1.0],
     },
@@ -47,7 +47,7 @@ impl Cube {
 }
 
 impl Model for Cube {
-  fn load() -> (Vec<Vertex>, Vec<u16>) {
+  fn load() -> (Vec<ColorVertex>, Vec<u16>) {
     (Self::VERTICES.to_vec(), Self::INDICES.to_vec())
   }
 }

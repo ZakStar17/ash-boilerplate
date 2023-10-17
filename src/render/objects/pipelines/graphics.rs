@@ -2,7 +2,7 @@ use std::{ffi::CString, ptr};
 
 use ash::vk;
 
-use crate::render::{objects::Vertex, shaders, MatrixInstance};
+use crate::render::{objects::ColorVertex, shaders, MatrixInstance};
 
 pub struct GraphicsPipelines {
   pub layout: vk::PipelineLayout,
@@ -43,11 +43,11 @@ impl GraphicsPipelines {
 
     // convoluted for now
     let binding_descriptions = [
-      Vertex::get_binding_description(0),
+      ColorVertex::get_binding_description(0),
       MatrixInstance::get_binding_description(1),
     ];
     let attribute_descriptions: Vec<vk::VertexInputAttributeDescription> = [
-      Vertex::get_attribute_descriptions(0, 0),
+      ColorVertex::get_attribute_descriptions(0, 0),
       MatrixInstance::get_attribute_descriptions(2, 1),
     ]
     .into_iter()

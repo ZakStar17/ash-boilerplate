@@ -35,4 +35,4 @@ pub use render_pass::create_render_pass;
 pub use surface::create_surface;
 pub use swapchain::Swapchains;
 pub use vert_instance::MatrixInstance;
-pub use vertex::Vertex;
+pub use vertex::{ColorVertex, TexVertex};

@@ -3,14 +3,14 @@ use std::{fs::File, io::BufReader, time::Instant};
 use log::info;
 use obj::{load_obj, Obj};
 
-use crate::render::objects::Vertex;
+use crate::render::objects::ColorVertex;
 
 use super::Model;
 
 pub struct Niko {}
 
 impl Model for Niko {
-  fn load() -> (Vec<Vertex>, Vec<u16>) {
+  fn load() -> (Vec<ColorVertex>, Vec<u16>) {
     let start = Instant::now();
     let input = BufReader::new(
       File::open("./assets/models/niko/niko.obj").expect("Failed to open custom model file"),
@@ -19,7 +19,7 @@ impl Model for Niko {
     let vertices = obj
       .vertices
       .into_iter()
-      .map(|v| Vertex {
+      .map(|v| ColorVertex {
         pos: v.position,
         color: v.texture,
       })

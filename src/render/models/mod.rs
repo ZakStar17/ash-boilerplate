@@ -1,13 +1,13 @@
 use crate::structures::Linear2dVec;
 
-use super::objects::Vertex;
+use super::objects::ColorVertex;
 
 mod cube;
 mod niko;
 mod weird_square;
 
 trait Model {
-  fn load() -> (Vec<Vertex>, Vec<u16>);
+  fn load() -> (Vec<ColorVertex>, Vec<u16>);
 }
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct ModelProperties {
 }
 
 pub struct Models {
-  pub vertices: Linear2dVec<Vertex>,
+  pub vertices: Linear2dVec<ColorVertex>,
   pub indices: Linear2dVec<u16>,
 }
 
@@ -40,9 +40,9 @@ impl Models {
     Self { vertices, indices }
   }
 
-  fn load_vertices(vertices: Vec<Vec<Vertex>>) -> Linear2dVec<Vertex> {
+  fn load_vertices(vertices: Vec<Vec<ColorVertex>>) -> Linear2dVec<ColorVertex> {
     let mut iter = vertices.into_iter();
-    let iter: &mut dyn ExactSizeIterator<Item = Vec<Vertex>> = &mut iter;
+    let iter: &mut dyn ExactSizeIterator<Item = Vec<ColorVertex>> = &mut iter;
     Linear2dVec::from(iter)
   }
 

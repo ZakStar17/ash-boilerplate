@@ -7,7 +7,7 @@ use crate::{
     models::Models,
     objects::{
       command_buffer_pools::CopyBufferOperation, CommandBufferPools, InstProperties,
-      MatrixInstance, QueueFamilyIndices, Queues, Vertex,
+      MatrixInstance, QueueFamilyIndices, Queues, ColorVertex,
     },
   },
   static_scene::StaticScene,
@@ -61,7 +61,7 @@ impl LocalConstantMemory {
     let scene = StaticScene::load(); // information about static (constant location, etc.) objects
 
     // create vulkan buffers
-    let vertex_size = (std::mem::size_of::<Vertex>() * models.vertices.len()) as u64;
+    let vertex_size = (std::mem::size_of::<ColorVertex>() * models.vertices.len()) as u64;
     let index_size = (std::mem::size_of::<u16>() * models.indices.len()) as u64;
     let inst_size = (std::mem::size_of::<MatrixInstance>() * scene.total_obj_count) as u64;
     let vk_buffers = create_travel_buffers(
@@ -128,7 +128,7 @@ impl LocalConstantMemory {
     // because the source buffer may be not continuous, data is copied buffer by buffer
     // may need optimizations
     unsafe {
-      copy_into_mem!(device, src_memory, src_offsets[0], models.vertices, Vertex);
+      copy_into_mem!(device, src_memory, src_offsets[0], models.vertices, ColorVertex);
       copy_into_mem!(device, src_memory, src_offsets[1], models.indices, u16);
       copy_into_mem!(
         device,
