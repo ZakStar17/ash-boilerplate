@@ -1,4 +1,5 @@
 #![feature(iter_next_chunk)]
+#![feature(pointer_byte_offsets)]
 
 mod app;
 mod keys;

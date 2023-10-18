@@ -2,7 +2,7 @@ use ash::vk;
 use memoffset::offset_of;
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct ColorVertex {
   pub pos: [f32; 3],
   pub color: [f32; 3],
@@ -39,7 +39,7 @@ impl ColorVertex {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct TexVertex {
   pub pos: [f32; 3],
   pub normal: [f32; 3],

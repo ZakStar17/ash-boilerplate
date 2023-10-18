@@ -83,19 +83,19 @@ impl MainCommandBufferPool {
       vk::PipelineBindPoint::GRAPHICS,
       pipelines.graphics.main,
     );
-    let vertex_buffers = [buffers.local_constant.vertex, buffers.local.inst[i].0];
+    let vertex_buffers = [buffers.local_constant.vertex.buffer, buffers.local.inst[i].0];
     let offsets = [0_u64, 0];
 
     device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &offsets);
     device.cmd_bind_index_buffer(
       command_buffer,
-      buffers.local_constant.index,
+      buffers.local_constant.index.buffer,
       0,
       vk::IndexType::UINT16,
     );
 
     // draw static objects
-    for inst_p in buffers.local_constant.inst_props.iter() {
+    for inst_p in buffers.local_constant.inst.props.iter() {
       let model_p = &model_props[inst_p.model_i];
       device.cmd_draw_indexed(
         command_buffer,
@@ -109,7 +109,7 @@ impl MainCommandBufferPool {
 
     // draw dynamic objects (same thing but with offset)
     // I guess this will be better when I find out how to use indirect buffers
-    let static_inst_offset = buffers.local_constant.inst_count;
+    let static_inst_offset = buffers.local_constant.inst.count;
     for inst_p in dyn_inst_props.iter() {
       let model_p = &model_props[inst_p.model_i];
       device.cmd_draw_indexed(

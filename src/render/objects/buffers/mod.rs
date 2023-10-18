@@ -83,7 +83,7 @@ fn allocate_vk_buffers(
     let mem_requirements = unsafe { device.get_buffer_memory_requirements(*buffer) };
     buffer_requirements_bits |= mem_requirements.memory_type_bits;
 
-    // the specification guarantees that the algignment is a power of 2
+    // the specification guarantees that the alignment is a power of 2
     #[cfg(debug_assertions)]
     assert!(
       mem_requirements.alignment > 0
@@ -168,7 +168,7 @@ impl Buffers {
       device,
       memory_properties,
       queue_families,
-      local_constant.inst_count as u64,
+      local_constant.inst.count as u64,
       max_dyn_inst_count,
     );
 

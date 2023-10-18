@@ -69,9 +69,9 @@ impl DescriptorSetPool {
 
   pub fn update_inst_static(&mut self, i: usize, device: &ash::Device, buffers: &Buffers) {
     // [static] [dyn] -> [static dyn]
-    let static_size = buffers.local_constant.inst_size;
+    let static_size = buffers.local_constant.inst.size;
     let buffer_info_source = vk::DescriptorBufferInfo {
-      buffer: buffers.local_constant.inst,
+      buffer: buffers.local_constant.inst.buffer,
       offset: 0,
       range: static_size,
     };
@@ -112,7 +112,7 @@ impl DescriptorSetPool {
     dyn_inst_count: u64,
   ) {
     // [static] [dyn] -> [static dyn]
-    let static_size = buffers.local_constant.inst_size;
+    let static_size = buffers.local_constant.inst.size;
     let dyn_size = size_of::<MatrixInstance>() as u64 * dyn_inst_count;
     let buffer_info_source = vk::DescriptorBufferInfo {
       buffer: buffers.host_writable.inst[i].0,

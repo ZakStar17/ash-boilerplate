@@ -81,7 +81,7 @@ impl ComputeCommandBufferPool {
     );
     device.cmd_bind_pipeline(cb, vk::PipelineBindPoint::COMPUTE, pipelines.compute.inst);
 
-    device.cmd_dispatch(cb, buffers.local_constant.inst_count / 64 + 1, 1, 1);
+    device.cmd_dispatch(cb, buffers.local_constant.inst.count / 64 + 1, 1, 1);
 
     device
       .end_command_buffer(cb)

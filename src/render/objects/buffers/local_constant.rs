@@ -1,13 +1,14 @@
 use std::ptr;
 
 use ash::vk;
+use log::debug;
 
 use crate::{
   render::{
     models::Models,
     objects::{
-      command_buffer_pools::CopyBufferOperation, CommandBufferPools, InstProperties,
-      MatrixInstance, QueueFamilyIndices, Queues, ColorVertex,
+      command_buffer_pools::CopyBufferOperation, ColorVertex, CommandBufferPools, InstProperties,
+      MatrixInstance, QueueFamilyIndices, Queues, TexVertex,
     },
   },
   static_scene::StaticScene,
@@ -18,35 +19,40 @@ use super::{
   STORAGE_USAGE, VERTEX_DST_USAGE,
 };
 
-// holds model information and static objects
-// contains local memory, buffers and their offsets (in memory)
-pub struct LocalConstantMemory {
-  memory: vk::DeviceMemory,
-  pub vertex: vk::Buffer,
-  pub vertex_offset: u64,
-  pub index: vk::Buffer,
-  pub index_offset: u64,
-  pub inst: vk::Buffer,
-  pub inst_offset: u64,
-  pub inst_size: u64,
-  pub inst_count: u32,
-  pub inst_props: Vec<InstProperties>,
+pub struct Vertex {
+  pub buffer: vk::Buffer,
+  pub mem_offset: u64,
+  // internal data offsets
+  pub color_offset: u64,
+  pub tex_offset: u64,
 }
 
-macro_rules! copy_into_mem {
-  ($device:expr, $mem:expr, $mem_offset:expr, $data:expr, $t:ty) => {
-    let l = $data.len();
-    let data_ptr = $device
-      .map_memory(
-        $mem,
-        $mem_offset,
-        (std::mem::size_of::<$t>() * l) as u64,
-        vk::MemoryMapFlags::empty(),
-      )
-      .expect("Failed to map memory") as *mut $t;
-    data_ptr.copy_from_nonoverlapping($data.as_ptr(), l);
-    $device.unmap_memory($mem);
-  };
+pub struct Index {
+  pub buffer: vk::Buffer,
+  pub mem_offset: u64,
+  // internal data offsets
+  pub color_offset: u64,
+  pub tex_offset: u64,
+}
+
+pub struct Inst {
+  pub buffer: vk::Buffer,
+  pub mem_offset: u64,
+  pub size: u64,
+  pub count: u32,
+  pub props: Vec<InstProperties>,
+}
+
+// holds model information and static objects
+// contains local memory, buffers and their offsets (in memory)
+// ------------ Memory Layout ------------
+// [  Vertex  ] [  Index   ] [   Instance    ]
+// [Color][Tex] [Color][Tex] [Instance Blocks]
+pub struct LocalConstantMemory {
+  memory: vk::DeviceMemory,
+  pub vertex: Vertex,
+  pub index: Index,
+  pub inst: Inst,
 }
 
 impl LocalConstantMemory {
@@ -60,10 +66,22 @@ impl LocalConstantMemory {
   ) -> Self {
     let scene = StaticScene::load(); // information about static (constant location, etc.) objects
 
+    // TODO: dummy values
+    let tex_vertices: Vec<TexVertex> = vec![TexVertex::default(); 100];
+    let tex_indices: Vec<u16> = vec![0; 100];
+
     // create vulkan buffers
-    let vertex_size = (std::mem::size_of::<ColorVertex>() * models.vertices.len()) as u64;
-    let index_size = (std::mem::size_of::<u16>() * models.indices.len()) as u64;
+    let color_vertex_size = (std::mem::size_of::<ColorVertex>() * models.vertices.len()) as u64;
+    let tex_vertex_size = (std::mem::size_of::<TexVertex>() * tex_vertices.len()) as u64;
+    let vertex_size = color_vertex_size + tex_vertex_size;
+
+    let color_index_size = (std::mem::size_of::<u16>() * models.indices.len()) as u64;
+    let tex_index_size = (std::mem::size_of::<u16>() * tex_indices.len()) as u64;
+    let index_size = color_index_size + tex_index_size;
+
     let inst_size = (std::mem::size_of::<MatrixInstance>() * scene.total_obj_count) as u64;
+    let total_unallocated_size = vertex_size + index_size + inst_size;
+
     let vk_buffers = create_travel_buffers(
       device,
       queue_families,
@@ -103,10 +121,11 @@ impl LocalConstantMemory {
       memory_properties,
       LOCAL_MEMORY_PROPERTY_FLAGS,
     );
-    if src_size != dst_size {
-      // I don't know if this could happen or not
-      panic!("Costant buffer creation: source size is not equal to destination size");
-    }
+
+    debug!(
+      "Buffer internal alignment wasted space: {} bytes",
+      dst_size - total_unallocated_size
+    );
 
     let (vec, inst_model_indices) = scene.objects();
     let (inst_objs, inst_parts) = vec.deconstruct();
@@ -124,19 +143,78 @@ impl LocalConstantMemory {
       .map(|obj| MatrixInstance::new(obj.ren().model().clone()))
       .collect();
 
+    // Some fields are repeated but whatever
+    let vertex_src = Vertex {
+      buffer: src_buffers[0].1,
+      mem_offset: src_offsets[0],
+      color_offset: 0,
+      tex_offset: color_vertex_size,
+    };
+    let vertex_dst = Vertex {
+      buffer: dst_buffers[0].1,
+      mem_offset: dst_offsets[0],
+      color_offset: 0,
+      tex_offset: color_vertex_size,
+    };
+    let index_src = Index {
+      buffer: src_buffers[1].1,
+      mem_offset: src_offsets[1],
+      color_offset: 0,
+      tex_offset: color_index_size,
+    };
+    let index_dst = Index {
+      buffer: dst_buffers[1].1,
+      mem_offset: dst_offsets[1],
+      color_offset: 0,
+      tex_offset: color_index_size,
+    };
+    let inst_src_offset = src_offsets[2];
+    let inst_dst = Inst {
+      buffer: dst_buffers[2].1,
+      mem_offset: dst_offsets[2],
+      size: inst_size,
+      count: inst_data.len() as u32,
+      props: inst_props,
+    };
+
     // copy data into the source buffers (host memory)
-    // because the source buffer may be not continuous, data is copied buffer by buffer
-    // may need optimizations
+    // because the source buffer is internally aligned and probably not continuous,
+    //    data is copied separately
+    println!("Starting buffer copy");
     unsafe {
-      copy_into_mem!(device, src_memory, src_offsets[0], models.vertices, ColorVertex);
-      copy_into_mem!(device, src_memory, src_offsets[1], models.indices, u16);
-      copy_into_mem!(
-        device,
-        src_memory,
-        src_offsets[2],
-        inst_data,
-        MatrixInstance
+      let mem_ptr = device
+        .map_memory(src_memory, 0, src_size, vk::MemoryMapFlags::empty())
+        .expect("Failed to map constant source memory") as *mut u8;
+
+      ptr::copy_nonoverlapping(
+        models.vertices.as_ptr() as *const u8,
+        mem_ptr.byte_add((vertex_src.mem_offset + vertex_src.color_offset) as usize) as *mut u8,
+        color_vertex_size as usize,
       );
+      ptr::copy_nonoverlapping(
+        tex_vertices.as_ptr() as *const u8,
+        mem_ptr.byte_add((vertex_src.mem_offset + vertex_src.tex_offset) as usize) as *mut u8,
+        tex_vertex_size as usize,
+      );
+
+      ptr::copy_nonoverlapping(
+        models.indices.as_ptr() as *const u8,
+        mem_ptr.byte_add((index_src.mem_offset + index_src.color_offset) as usize) as *mut u8,
+        color_index_size as usize,
+      );
+      ptr::copy_nonoverlapping(
+        tex_indices.as_ptr() as *const u8,
+        mem_ptr.byte_add((index_src.mem_offset + index_src.tex_offset) as usize) as *mut u8,
+        tex_index_size as usize,
+      );
+
+      ptr::copy_nonoverlapping(
+        inst_data.as_ptr() as *const u8,
+        mem_ptr.byte_add(inst_src_offset as usize) as *mut u8,
+        inst_size as usize,
+      );
+
+      device.unmap_memory(src_memory);
     }
 
     // copy data from source buffers into destination and deallocate the source memory
@@ -208,29 +286,18 @@ impl LocalConstantMemory {
       device.free_memory(src_memory, None);
     }
 
-    let mut dsts_iter = dst_buffers.into_iter();
-    let vertex = dsts_iter.next().unwrap().1;
-    let index = dsts_iter.next().unwrap().1;
-    let inst = dsts_iter.next().unwrap().1;
-
     Self {
       memory: dst_memory,
-      vertex,
-      vertex_offset: dst_offsets[0],
-      index,
-      index_offset: dst_offsets[1],
-      inst,
-      inst_offset: dst_offsets[2],
-      inst_size,
-      inst_count: inst_data.len() as u32,
-      inst_props,
+      vertex: vertex_dst,
+      index: index_dst,
+      inst: inst_dst
     }
   }
 
   pub unsafe fn destroy_self(&mut self, device: &ash::Device) {
-    device.destroy_buffer(self.vertex, None);
-    device.destroy_buffer(self.index, None);
-    device.destroy_buffer(self.inst, None);
+    device.destroy_buffer(self.vertex.buffer, None);
+    device.destroy_buffer(self.index.buffer, None);
+    device.destroy_buffer(self.inst.buffer, None);
     device.free_memory(self.memory, None);
   }
 }
