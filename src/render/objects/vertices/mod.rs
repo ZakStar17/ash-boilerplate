@@ -52,10 +52,10 @@ macro_rules! enumerate_attribute_descriptions {
 
 pub(crate) use enumerate_attribute_descriptions;
 
-macro_rules! get_vertex_input_state_creation_info {
+macro_rules! get_pipeline_vertex_input_state_ci {
   ($($vertices:tt,)+) => {
     {
-      let binding_descriptions = enumerate_binding_descriptions!($($vertices,)+);
+      let binding_descriptions = Box::pin(enumerate_binding_descriptions!($($vertices,)+));
       let attribute_descriptions: Vec<vk::VertexInputAttributeDescription> = 
         enumerate_attribute_descriptions!($($vertices,)+)
         .into_iter()
@@ -75,4 +75,4 @@ macro_rules! get_vertex_input_state_creation_info {
   };
 }
 
-pub(crate) use get_vertex_input_state_creation_info;
+pub(crate) use get_pipeline_vertex_input_state_ci;
