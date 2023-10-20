@@ -1,8 +1,18 @@
-use std::{ffi::CString, ptr};
+use std::ptr;
 
 use ash::vk;
 
-use crate::render::{objects::ColorVertex, shaders, MatrixInstance};
+use crate::render::{
+  objects::{
+    vertices::{
+      enumerate_attribute_descriptions, enumerate_binding_descriptions,
+      get_vertex_input_state_creation_info,
+    },
+    ColorVertex, Vertex,
+  },
+  shaders::{self, GraphicsShader},
+  MatrixInstance,
+};
 
 pub struct GraphicsPipelines {
   pub layout: vk::PipelineLayout,
@@ -16,52 +26,10 @@ impl GraphicsPipelines {
     render_pass: vk::RenderPass,
   ) -> Self {
     let mut shader = shaders::plain::Shader::load(device);
-    let main_function_name = CString::new("main").unwrap(); // the beginning function name in shader code.
+    let (shader_stages, shader_func_name) = shader.get_pipeline_shader_creation_info();
 
-    let shader_stages = [
-      vk::PipelineShaderStageCreateInfo {
-        // Vertex shader
-        s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
-        p_next: ptr::null(),
-        flags: vk::PipelineShaderStageCreateFlags::empty(),
-        module: shader.vert,
-        p_name: main_function_name.as_ptr(),
-        p_specialization_info: ptr::null(),
-        stage: vk::ShaderStageFlags::VERTEX,
-      },
-      vk::PipelineShaderStageCreateInfo {
-        // Fragment shader
-        s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
-        p_next: ptr::null(),
-        flags: vk::PipelineShaderStageCreateFlags::empty(),
-        module: shader.frag,
-        p_name: main_function_name.as_ptr(),
-        p_specialization_info: ptr::null(),
-        stage: vk::ShaderStageFlags::FRAGMENT,
-      },
-    ];
-
-    // convoluted for now
-    let binding_descriptions = [
-      ColorVertex::get_binding_description(0),
-      MatrixInstance::get_binding_description(1),
-    ];
-    let attribute_descriptions: Vec<vk::VertexInputAttributeDescription> = [
-      ColorVertex::get_attribute_descriptions(0, 0),
-      MatrixInstance::get_attribute_descriptions(2, 1),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    let vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo {
-      s_type: vk::StructureType::PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-      p_next: ptr::null(),
-      flags: vk::PipelineVertexInputStateCreateFlags::empty(),
-      vertex_attribute_description_count: attribute_descriptions.len() as u32,
-      p_vertex_attribute_descriptions: attribute_descriptions.as_ptr(),
-      vertex_binding_description_count: binding_descriptions.len() as u32,
-      p_vertex_binding_descriptions: binding_descriptions.as_ptr(),
-    };
+    let (vertex_input_state_create_info, _binding_descriptions, _attribute_descriptions) =
+      get_vertex_input_state_creation_info!(ColorVertex, MatrixInstance,);
 
     let vertex_input_assembly_state_info = vk::PipelineInputAssemblyStateCreateInfo {
       s_type: vk::StructureType::PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -213,6 +181,7 @@ impl GraphicsPipelines {
         .expect("Failed to create graphics pipelines")
     };
 
+    drop(shader_func_name);
     unsafe {
       shader.destroy_self(device);
     }

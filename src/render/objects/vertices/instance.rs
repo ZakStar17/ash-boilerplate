@@ -2,6 +2,8 @@ use ash::vk;
 use cgmath::Matrix4;
 use memoffset::offset_of;
 
+use super::Vertex;
+
 #[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MatrixInstance {
@@ -18,8 +20,10 @@ impl MatrixInstance {
       _padding: (),
     }
   }
+}
 
-  pub fn get_binding_description(binding: u32) -> vk::VertexInputBindingDescription {
+impl Vertex for MatrixInstance {
+  fn get_binding_description(binding: u32) -> vk::VertexInputBindingDescription {
     vk::VertexInputBindingDescription {
       binding,
       stride: std::mem::size_of::<Self>() as u32,
@@ -27,7 +31,7 @@ impl MatrixInstance {
     }
   }
 
-  pub fn get_attribute_descriptions(
+  fn get_attribute_descriptions(
     start_location: u32,
     binding: u32,
   ) -> Vec<vk::VertexInputAttributeDescription> {
@@ -57,5 +61,9 @@ impl MatrixInstance {
         offset: offset_of!(Self, matrix) as u32 + offset_of!(Matrix4<f32>, w) as u32,
       },
     ]
+  }
+
+  fn attribute_size() -> u32 {
+    4
   }
 }

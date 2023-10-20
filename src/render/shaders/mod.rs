@@ -3,7 +3,42 @@ pub mod plain;
 pub use compute::ComputeShaders;
 
 use ash::vk;
-use std::{path::Path, ptr};
+use std::{ffi::CString, path::Path, ptr};
+
+pub trait GraphicsShader {
+  fn get_vert(&self) -> vk::ShaderModule;
+  fn get_frag(&self) -> vk::ShaderModule;
+
+  fn get_pipeline_shader_creation_info(&self) -> ([vk::PipelineShaderStageCreateInfo; 2], CString) {
+    // returned for lifetime reasons
+    let main_function_name = CString::new("main").unwrap();
+    (
+      [
+        vk::PipelineShaderStageCreateInfo {
+          // Vertex shader
+          s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
+          p_next: ptr::null(),
+          flags: vk::PipelineShaderStageCreateFlags::empty(),
+          module: self.get_vert(),
+          p_name: main_function_name.as_ptr(),
+          p_specialization_info: ptr::null(),
+          stage: vk::ShaderStageFlags::VERTEX,
+        },
+        vk::PipelineShaderStageCreateInfo {
+          // Fragment shader
+          s_type: vk::StructureType::PIPELINE_SHADER_STAGE_CREATE_INFO,
+          p_next: ptr::null(),
+          flags: vk::PipelineShaderStageCreateFlags::empty(),
+          module: self.get_frag(),
+          p_name: main_function_name.as_ptr(),
+          p_specialization_info: ptr::null(),
+          stage: vk::ShaderStageFlags::FRAGMENT,
+        },
+      ],
+      main_function_name,
+    )
+  }
+}
 
 pub fn load_shader(device: &ash::Device, shader_path: &Path) -> vk::ShaderModule {
   let code = read_shader_code(shader_path);

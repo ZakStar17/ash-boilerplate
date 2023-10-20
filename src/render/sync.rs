@@ -7,10 +7,7 @@ use ash::vk;
 use log::{info, warn};
 use winit::{dpi::PhysicalPosition, event_loop::EventLoop, window::CursorGrabMode};
 
-use crate::{
-  objects::Niko,
-  FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT,
-};
+use crate::{objects::Niko, FPS_PRINT_INTERVAL, GPU_PRINT_INTERVAL, PRINT_FPS, PRINT_GPU_WAIT};
 
 use super::{
   camera::{Camera, RenderCamera},

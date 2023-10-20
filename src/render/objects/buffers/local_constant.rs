@@ -290,7 +290,7 @@ impl LocalConstantMemory {
       memory: dst_memory,
       vertex: vertex_dst,
       index: index_dst,
-      inst: inst_dst
+      inst: inst_dst,
     }
   }
 

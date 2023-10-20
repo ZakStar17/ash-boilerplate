@@ -83,7 +83,10 @@ impl MainCommandBufferPool {
       vk::PipelineBindPoint::GRAPHICS,
       pipelines.graphics.main,
     );
-    let vertex_buffers = [buffers.local_constant.vertex.buffer, buffers.local.inst[i].0];
+    let vertex_buffers = [
+      buffers.local_constant.vertex.buffer,
+      buffers.local.inst[i].0,
+    ];
     let offsets = [0_u64, 0];
 
     device.cmd_bind_vertex_buffers(command_buffer, 0, &vertex_buffers, &offsets);
