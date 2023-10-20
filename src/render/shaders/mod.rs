@@ -1,5 +1,6 @@
 mod compute;
 pub mod plain;
+pub mod tex_plain;
 pub use compute::ComputeShaders;
 
 use ash::vk;
