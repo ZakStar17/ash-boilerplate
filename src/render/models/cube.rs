@@ -1,6 +1,6 @@
 use crate::render::objects::ColorVertex;
 
-use super::Model;
+use super::ColorModel;
 
 pub struct Cube {}
 
@@ -46,7 +46,7 @@ impl Cube {
   ];
 }
 
-impl Model for Cube {
+impl ColorModel for Cube {
   fn load() -> (Vec<ColorVertex>, Vec<u16>) {
     (Self::VERTICES.to_vec(), Self::INDICES.to_vec())
   }

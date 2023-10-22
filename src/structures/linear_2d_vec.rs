@@ -64,6 +64,10 @@ impl<T> Linear2dVec<T> {
   pub fn deconstruct(self) -> (Vec<T>, Vec<Partition<usize>>) {
     (self.data, self.parts)
   }
+
+  pub fn part(&self, i: usize) -> Partition<usize> {
+    self.parts[i]
+  }
 }
 
 impl<T> IntoIterator for Linear2dVec<T> {
@@ -116,5 +120,13 @@ impl<T> From<&mut dyn Iterator<Item = Vec<T>>> for Linear2dVec<T> {
       })
       .collect();
     Self { data, parts }
+  }
+}
+
+impl<T> From<Vec<Vec<T>>> for Linear2dVec<T> {
+  fn from(value: Vec<Vec<T>>) -> Self {
+    let mut iter = value.into_iter();
+    let iter: &mut dyn ExactSizeIterator<Item = Vec<T>> = &mut iter;
+    Linear2dVec::from(iter)
   }
 }

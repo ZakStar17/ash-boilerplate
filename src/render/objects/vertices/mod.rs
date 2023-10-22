@@ -56,7 +56,7 @@ macro_rules! get_pipeline_vertex_input_state_ci {
   ($($vertices:tt,)+) => {
     {
       let binding_descriptions = Box::pin(enumerate_binding_descriptions!($($vertices,)+));
-      let attribute_descriptions: Vec<vk::VertexInputAttributeDescription> = 
+      let attribute_descriptions: Vec<vk::VertexInputAttributeDescription> =
         enumerate_attribute_descriptions!($($vertices,)+)
         .into_iter()
         .flatten()

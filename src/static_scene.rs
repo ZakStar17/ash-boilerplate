@@ -2,7 +2,7 @@ use cgmath::Point3;
 
 use crate::{
   objects::{Cube, Square},
-  render::{Models, RenderableIn3d},
+  render::{ColorModelIndex, ColorModeled, RenderableIn3d},
   structures::Linear2dVec,
 };
 
@@ -24,8 +24,11 @@ impl StaticScene {
     }
   }
 
-  pub fn objects<'a>(&'a self) -> (Linear2dVec<&'a dyn RenderableIn3d>, Vec<usize>) {
-    let squares: Vec<&'a dyn RenderableIn3d> = self
+  // this function is only for the color shader, I will think of I way to make this dynamic
+  pub fn color_objects<'a>(
+    &'a self,
+  ) -> (Linear2dVec<&'a dyn RenderableIn3d>, Vec<ColorModelIndex>) {
+    let squares: Vec<&'a (dyn RenderableIn3d)> = self
       .squares
       .iter()
       .map(|x| {
@@ -43,8 +46,8 @@ impl StaticScene {
       .collect();
 
     let all = [squares, cubes];
-    // shoud correspond to the above
-    let model_indices = vec![Models::SQUARE_INDEX, Models::CUBE_INDEX];
+    // should correspond to the above
+    let model_indices = vec![Square::model_i(), Cube::model_i()];
     let mut iter = all.into_iter();
     let iter: &mut dyn ExactSizeIterator<Item = Vec<&'a dyn RenderableIn3d>> = &mut iter;
     (Linear2dVec::from(iter), model_indices)

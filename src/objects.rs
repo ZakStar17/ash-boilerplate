@@ -1,6 +1,9 @@
 use cgmath::{Euler, Point3, Rad};
 
-use crate::render::{Models, Renderable3dObject, RenderableIn3d};
+use crate::render::{
+  ColorModelIndex, ColorModeled, ColorModels, Renderable3dObject, RenderableIn3d, TexModelIndex,
+  TexModeled, TexModels,
+};
 
 // probably all of these will be just an object with a changeable model index
 pub struct Square {
@@ -8,7 +11,7 @@ pub struct Square {
 }
 
 impl Square {
-  pub const MODEL_INDEX: usize = Models::SQUARE_INDEX;
+  pub const MODEL_INDEX: ColorModelIndex = ColorModels::SQUARE_INDEX;
 
   pub fn new(position: Point3<f32>) -> Self {
     Self {
@@ -29,8 +32,10 @@ impl RenderableIn3d for Square {
   fn ren_mut(&mut self) -> &mut Renderable3dObject {
     &mut self.render
   }
+}
 
-  fn model_i(&self) -> usize {
+impl ColorModeled for Square {
+  fn model_i() -> ColorModelIndex {
     Self::MODEL_INDEX
   }
 }
@@ -40,7 +45,7 @@ pub struct Cube {
 }
 
 impl Cube {
-  pub const MODEL_INDEX: usize = Models::CUBE_INDEX;
+  pub const MODEL_INDEX: ColorModelIndex = ColorModels::CUBE_INDEX;
 
   pub fn new(position: Point3<f32>) -> Self {
     Self {
@@ -61,8 +66,10 @@ impl RenderableIn3d for Cube {
   fn ren_mut(&mut self) -> &mut Renderable3dObject {
     &mut self.render
   }
+}
 
-  fn model_i(&self) -> usize {
+impl ColorModeled for Cube {
+  fn model_i() -> ColorModelIndex {
     Self::MODEL_INDEX
   }
 }
@@ -72,7 +79,7 @@ pub struct Niko {
 }
 
 impl Niko {
-  pub const MODEL_INDEX: usize = Models::NIKO_INDEX;
+  pub const MODEL_INDEX: TexModelIndex = TexModels::NIKO_INDEX;
 
   pub fn from_full(position: Point3<f32>, rotation: Euler<Rad<f32>>, scale: f32) -> Self {
     Self {
@@ -93,8 +100,10 @@ impl RenderableIn3d for Niko {
   fn ren_mut(&mut self) -> &mut Renderable3dObject {
     &mut self.render
   }
+}
 
-  fn model_i(&self) -> usize {
+impl TexModeled for Niko {
+  fn model_i() -> TexModelIndex {
     Self::MODEL_INDEX
   }
 }

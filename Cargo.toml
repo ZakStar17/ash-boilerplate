@@ -16,6 +16,7 @@ memoffset = "0.8.0"
 rand = "0.8.5"
 cgmath = "0.18.0"
 obj-rs = { version = "0.7.1", features = ["glium"] }
+itertools = "0.11.0"
 
 [features]
 "default" = ["load_vulkan", "vulkan_vl"]

@@ -5,7 +5,7 @@ use super::{
     self, Buffers, CommandBufferPools, DescriptorSets, InstProperties, Pipelines,
     QueueFamilyIndices, Queues, Swapchains,
   },
-  MatrixInstance, Models, DEVICE_EXTENSIONS,
+  MatrixInstance, Models, Textures, DEVICE_EXTENSIONS,
 };
 
 use crate::{INITIAL_WINDOW_HEIGHT, INITIAL_WINDOW_WIDTH, WINDOW_TITLE};
@@ -38,7 +38,7 @@ pub struct Renderer {
   framebuffers: Vec<vk::Framebuffer>,
   pub command_buffer_pools: CommandBufferPools,
   buffers: Buffers,
-  model_props: Vec<ModelProperties>,
+  model_props: ModelProperties,
 }
 
 #[cfg(all(feature = "link_vulkan", feature = "load_vulkan"))]
@@ -162,6 +162,7 @@ impl Renderer {
     let mut command_buffer_pools =
       CommandBufferPools::create(&logical_device, &queue_family_indices);
     let models = Models::load();
+    let textures = Textures::load();
     let buffers = Buffers::create(
       &instance,
       &logical_device,
@@ -196,7 +197,7 @@ impl Renderer {
       buffers,
       command_buffer_pools,
       descriptor_sets,
-      model_props: models.into_properties(),
+      model_props: models.into_properties(&textures),
     }
   }
 

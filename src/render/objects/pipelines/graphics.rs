@@ -43,7 +43,8 @@ impl GraphicsPipelines {
     let rasterization_state_ci = super::get_no_depth_rasterization_state_ci();
     let multisample_state_ci = get_no_multisample_state_ci();
 
-    let (color_blend_state_ci, _color_blend_attachment) = super::get_no_blend_color_blend_state_ci();
+    let (color_blend_state_ci, _color_blend_attachment) =
+      super::get_no_blend_color_blend_state_ci();
 
     let layout_create_info = vk::PipelineLayoutCreateInfo {
       s_type: vk::StructureType::PIPELINE_LAYOUT_CREATE_INFO,
