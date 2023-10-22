@@ -2,14 +2,19 @@ use cgmath::Point3;
 
 use crate::{
   objects::{Cube, Square},
-  render::{ColorModelIndex, ColorModeled, RenderableIn3d},
+  render::{ColorModelIndex, ColorModeled, RenderableIn3d, TexModelIndex, TexModeled},
   structures::Linear2dVec,
 };
 
+// para depois: deixa isto numa so strctuctdasdsada
+
 pub struct StaticScene {
   pub total_obj_count: usize,
+  // color shader
   pub squares: Vec<Square>,
   pub cubes: Vec<Cube>,
+  // texture shader
+  pub boxes: Vec<Cube>,
 }
 
 impl StaticScene {
@@ -17,17 +22,21 @@ impl StaticScene {
     let mut squares = vec![Square::new(Point3::new(5.0, 5.0, 5.0))];
     squares[0].ren_mut().set_scale(3.0);
     let cubes = vec![Cube::new(Point3::new(3.0, 5.0, 5.0))];
+    let boxes = vec![Cube::new(Point3::new(3.0, 8.0, 6.0))];
     Self {
-      total_obj_count: squares.len() + cubes.len(),
+      total_obj_count: squares.len() + cubes.len() + boxes.len(),
       squares,
       cubes,
+      boxes,
     }
   }
 
-  // this function is only for the color shader, I will think of I way to make this dynamic
-  pub fn color_objects<'a>(
+  pub fn objects<'a>(
     &'a self,
-  ) -> (Linear2dVec<&'a dyn RenderableIn3d>, Vec<ColorModelIndex>) {
+  ) -> (
+    Linear2dVec<&'a dyn RenderableIn3d>,
+    (Vec<ColorModelIndex>, Vec<TexModelIndex>),
+  ) {
     let squares: Vec<&'a (dyn RenderableIn3d)> = self
       .squares
       .iter()
@@ -44,12 +53,23 @@ impl StaticScene {
         result
       })
       .collect();
+    let boxes: Vec<&'a dyn RenderableIn3d> = self
+      .boxes
+      .iter()
+      .map(|x| {
+        let result: &'a dyn RenderableIn3d = x;
+        result
+      })
+      .collect();
 
-    let all = [squares, cubes];
+    let all = [squares, cubes, boxes];
     // should correspond to the above
-    let model_indices = vec![Square::model_i(), Cube::model_i()];
+    let indices = (
+      vec![Square::model_i(), <Cube as ColorModeled>::model_i()],
+      vec![<Cube as TexModeled>::model_i()],
+    );
     let mut iter = all.into_iter();
     let iter: &mut dyn ExactSizeIterator<Item = Vec<&'a dyn RenderableIn3d>> = &mut iter;
-    (Linear2dVec::from(iter), model_indices)
+    (Linear2dVec::from(iter), indices)
   }
 }

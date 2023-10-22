@@ -9,9 +9,13 @@ mod modeled;
 
 pub use modeled::{ColorModelIndex, ColorModeled, TexModelIndex, TexModeled};
 
+mod r#box;
 mod cube;
 mod niko;
 mod weird_square;
+
+use niko::Niko;
+use r#box::Box;
 
 // This probably will be simplified by some macros
 trait ColorModel {
@@ -79,7 +83,7 @@ pub struct TexModels {
 
 impl TexModels {
   pub const NIKO_INDEX: TexModelIndex = TexModelIndex(0);
-  pub const TEX_INDICES: [usize; 1] = [0];
+  pub const BOX_INDEX: TexModelIndex = TexModelIndex(1);
 
   pub fn load() -> Self {
     let data = [niko::Niko::load()];
@@ -93,7 +97,7 @@ impl TexModels {
     itertools::izip!(
       self.vertices.into_parts_iter(),
       self.indices.into_parts_iter(),
-      Self::TEX_INDICES
+      [Niko::tex_index(), r#Box::tex_index()]
     )
     .map(|(vertex_p, index_p, tex_i)| {
       let tex_p = textures.part(tex_i);

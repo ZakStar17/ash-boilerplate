@@ -45,7 +45,8 @@ pub struct Cube {
 }
 
 impl Cube {
-  pub const MODEL_INDEX: ColorModelIndex = ColorModels::CUBE_INDEX;
+  const COLOR_MODEL_INDEX: ColorModelIndex = ColorModels::CUBE_INDEX;
+  const TEX_MODEL_INDEX: TexModelIndex = TexModels::BOX_INDEX;
 
   pub fn new(position: Point3<f32>) -> Self {
     Self {
@@ -70,7 +71,13 @@ impl RenderableIn3d for Cube {
 
 impl ColorModeled for Cube {
   fn model_i() -> ColorModelIndex {
-    Self::MODEL_INDEX
+    Self::COLOR_MODEL_INDEX
+  }
+}
+
+impl TexModeled for Cube {
+  fn model_i() -> TexModelIndex {
+    Self::TEX_MODEL_INDEX
   }
 }
 
