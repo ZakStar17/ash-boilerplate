@@ -168,7 +168,7 @@ impl Buffers {
       device,
       memory_properties,
       queue_families,
-      local_constant.inst.count as u64,
+      local_constant.inst.count(),
       max_dyn_inst_count,
     );
 

@@ -1,4 +1,4 @@
-use std::ptr;
+use std::{mem::size_of, ptr};
 
 use ash::vk;
 use log::debug;
@@ -12,6 +12,7 @@ use crate::{
     },
   },
   static_scene::StaticScene,
+  structures::Partition,
 };
 
 use super::{
@@ -39,15 +40,24 @@ pub struct Inst {
   pub buffer: vk::Buffer,
   pub mem_offset: u64,
   pub size: u64,
-  pub count: u32,
-  pub props: Vec<InstProperties>,
+  pub color_part: Partition<u64>,
+  pub color_props: Vec<InstProperties>,
+  pub tex_part: Partition<u64>,
+  pub tex_props: Vec<InstProperties>,
+}
+
+impl Inst {
+  pub fn count(&self) -> u64 {
+    (self.color_props.len() + self.tex_props.len()) as u64
+  }
 }
 
 // holds model information and static objects
 // contains local memory, buffers and their offsets (in memory)
 // ------------ Memory Layout ------------
-// [  Vertex  ] [  Index   ] [   Instance    ]
-// [Color][Tex] [Color][Tex] [Instance Blocks]
+// [  Vertex  ] [  Index   ] [   Instance   ]
+// [Color][Tex] [Color][Tex] [Color ][ Tex  ]
+//                           [Blocks][Blocks]
 pub struct LocalConstantMemory {
   memory: vk::DeviceMemory,
   pub vertex: Vertex,
@@ -66,21 +76,19 @@ impl LocalConstantMemory {
   ) -> Self {
     let scene = StaticScene::load(); // information about static (constant location, etc.) objects
 
-    // TODO: dummy values
-    let tex_vertices: Vec<TexVertex> = vec![TexVertex::default(); 100];
-    let tex_indices: Vec<u16> = vec![0; 100];
-
     // create vulkan buffers
-    let color_vertex_size = (std::mem::size_of::<ColorVertex>() * models.vertices.len()) as u64;
-    let tex_vertex_size = (std::mem::size_of::<TexVertex>() * tex_vertices.len()) as u64;
+    let color_vertex_size = (size_of::<ColorVertex>() * models.color.vertices.len()) as u64;
+    let tex_vertex_size = (size_of::<TexVertex>() * models.tex.vertices.len()) as u64;
     let vertex_size = color_vertex_size + tex_vertex_size;
 
-    let color_index_size = (std::mem::size_of::<u16>() * models.indices.len()) as u64;
-    let tex_index_size = (std::mem::size_of::<u16>() * tex_indices.len()) as u64;
+    let color_index_size = (size_of::<u16>() * models.color.indices.len()) as u64;
+    let tex_index_size = (size_of::<u16>() * models.tex.indices.len()) as u64;
     let index_size = color_index_size + tex_index_size;
 
-    let inst_size = (std::mem::size_of::<MatrixInstance>() * scene.total_obj_count) as u64;
-    let total_unallocated_size = vertex_size + index_size + inst_size;
+    let color_inst_size = (size_of::<MatrixInstance>() * scene.color_obj_count) as u64;
+    let tex_inst_size = (size_of::<MatrixInstance>() * scene.tex_obj_count) as u64;
+    let inst_size = color_inst_size + tex_inst_size;
+    let total_min_allocation_size = vertex_size + index_size + inst_size;
 
     let vk_buffers = create_travel_buffers(
       device,
@@ -124,20 +132,30 @@ impl LocalConstantMemory {
 
     debug!(
       "Buffer internal alignment wasted space: {} bytes",
-      dst_size - total_unallocated_size
+      dst_size - total_min_allocation_size
     );
 
-    let (vec, inst_model_indices) = scene.objects();
+    let (vec, (inst_color_is, inst_tex_is)) = scene.objects();
     let (inst_objs, inst_parts) = vec.deconstruct();
-    let inst_props = inst_model_indices
+    let inst_color_props = inst_color_is
       .into_iter()
-      .zip(inst_parts.iter())
+      .zip(inst_parts[0..inst_color_is.len()].iter())
       .map(|(model_i, part)| InstProperties {
-        model_i,
+        model_i: model_i.0,
         inst_count: part.size as u32,
         inst_offset: part.offset as u32,
       })
       .collect();
+    let inst_tex_props = inst_tex_is
+      .into_iter()
+      .zip(inst_parts[inst_color_is.len()..inst_tex_is.len()].iter())
+      .map(|(model_i, part)| InstProperties {
+        model_i: model_i.0,
+        inst_count: part.size as u32,
+        inst_offset: part.offset as u32,
+      })
+      .collect();
+
     let inst_data: Vec<MatrixInstance> = inst_objs
       .into_iter()
       .map(|obj| MatrixInstance::new(obj.ren().model().clone()))
@@ -173,8 +191,16 @@ impl LocalConstantMemory {
       buffer: dst_buffers[2].1,
       mem_offset: dst_offsets[2],
       size: inst_size,
-      count: inst_data.len() as u32,
-      props: inst_props,
+      color_part: Partition {
+        size: color_inst_size,
+        offset: 0,
+      },
+      tex_part: Partition {
+        size: tex_inst_size,
+        offset: color_inst_size,
+      },
+      color_props: inst_color_props,
+      tex_props: inst_tex_props,
     };
 
     // copy data into the source buffers (host memory)
@@ -187,23 +213,23 @@ impl LocalConstantMemory {
         .expect("Failed to map constant source memory") as *mut u8;
 
       ptr::copy_nonoverlapping(
-        models.vertices.as_ptr() as *const u8,
+        models.color.vertices.as_ptr() as *const u8,
         mem_ptr.byte_add((vertex_src.mem_offset + vertex_src.color_offset) as usize) as *mut u8,
         color_vertex_size as usize,
       );
       ptr::copy_nonoverlapping(
-        tex_vertices.as_ptr() as *const u8,
+        models.tex.indices.as_ptr() as *const u8,
         mem_ptr.byte_add((vertex_src.mem_offset + vertex_src.tex_offset) as usize) as *mut u8,
         tex_vertex_size as usize,
       );
 
       ptr::copy_nonoverlapping(
-        models.indices.as_ptr() as *const u8,
+        models.color.indices.as_ptr() as *const u8,
         mem_ptr.byte_add((index_src.mem_offset + index_src.color_offset) as usize) as *mut u8,
         color_index_size as usize,
       );
       ptr::copy_nonoverlapping(
-        tex_indices.as_ptr() as *const u8,
+        models.tex.indices.as_ptr() as *const u8,
         mem_ptr.byte_add((index_src.mem_offset + index_src.tex_offset) as usize) as *mut u8,
         tex_index_size as usize,
       );

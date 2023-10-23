@@ -6,10 +6,9 @@ use crate::{
   structures::Linear2dVec,
 };
 
-// para depois: deixa isto numa so strctuctdasdsada
-
 pub struct StaticScene {
-  pub total_obj_count: usize,
+  pub color_obj_count: usize,
+  pub tex_obj_count: usize,
   // color shader
   pub squares: Vec<Square>,
   pub cubes: Vec<Cube>,
@@ -24,7 +23,8 @@ impl StaticScene {
     let cubes = vec![Cube::new(Point3::new(3.0, 5.0, 5.0))];
     let boxes = vec![Cube::new(Point3::new(3.0, 8.0, 6.0))];
     Self {
-      total_obj_count: squares.len() + cubes.len() + boxes.len(),
+      color_obj_count: squares.len() + cubes.len(),
+      tex_obj_count: boxes.len(),
       squares,
       cubes,
       boxes,
