@@ -2,6 +2,8 @@ mod color;
 mod instance;
 mod tex;
 
+use std::ptr;
+
 use ash::vk;
 pub use color::ColorVertex;
 pub use instance::MatrixInstance;
@@ -14,6 +16,34 @@ pub trait Vertex {
     binding: u32,
   ) -> Vec<vk::VertexInputAttributeDescription>;
   fn attribute_size() -> u32;
+}
+
+pub struct PipelineVertexInputStateCIOwned {
+  pub ci: vk::PipelineVertexInputStateCreateInfo,
+  attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
+  binding_descriptions: Vec<vk::VertexInputBindingDescription>,
+}
+
+impl PipelineVertexInputStateCIOwned {
+  pub fn new(
+    attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
+    binding_descriptions: Vec<vk::VertexInputBindingDescription>,
+  ) -> Self {
+    let ci = vk::PipelineVertexInputStateCreateInfo {
+      s_type: vk::StructureType::PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+      p_next: ptr::null(),
+      flags: vk::PipelineVertexInputStateCreateFlags::empty(),
+      vertex_attribute_description_count: attribute_descriptions.len() as u32,
+      p_vertex_attribute_descriptions: attribute_descriptions.as_ptr(),
+      vertex_binding_description_count: binding_descriptions.len() as u32,
+      p_vertex_binding_descriptions: binding_descriptions.as_ptr(),
+    };
+    Self {
+      ci,
+      attribute_descriptions,
+      binding_descriptions,
+    }
+  }
 }
 
 // transforms
@@ -55,22 +85,13 @@ pub(crate) use enumerate_attribute_descriptions;
 macro_rules! get_pipeline_vertex_input_state_ci {
   ($($vertices:tt,)+) => {
     {
-      let binding_descriptions = Box::pin(enumerate_binding_descriptions!($($vertices,)+));
+      let binding_descriptions = enumerate_binding_descriptions!($($vertices,)+).to_vec();
       let attribute_descriptions: Vec<vk::VertexInputAttributeDescription> =
         enumerate_attribute_descriptions!($($vertices,)+)
         .into_iter()
         .flatten()
         .collect();
-      let info = vk::PipelineVertexInputStateCreateInfo {
-        s_type: vk::StructureType::PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        p_next: ptr::null(),
-        flags: vk::PipelineVertexInputStateCreateFlags::empty(),
-        vertex_attribute_description_count: attribute_descriptions.len() as u32,
-        p_vertex_attribute_descriptions: attribute_descriptions.as_ptr(),
-        vertex_binding_description_count: binding_descriptions.len() as u32,
-        p_vertex_binding_descriptions: binding_descriptions.as_ptr(),
-      };
-      (info, binding_descriptions, attribute_descriptions)
+      PipelineVertexInputStateCIOwned::new(attribute_descriptions, binding_descriptions)
     }
   };
 }

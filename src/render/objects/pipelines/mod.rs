@@ -59,39 +59,45 @@ fn get_default_input_assembly_state_ci() -> vk::PipelineInputAssemblyStateCreate
   }
 }
 
-fn get_viewport_state_ci(
-  swapchain_extent: vk::Extent2D,
-) -> (
-  vk::PipelineViewportStateCreateInfo,
-  Pin<Box<vk::Viewport>>,
-  Pin<Box<vk::Rect2D>>,
-) {
-  // Make sure viewport and scissor location not change
-  let viewport = Box::pin(vk::Viewport {
-    x: 0.0,
-    y: 0.0,
-    width: swapchain_extent.width as f32,
-    height: swapchain_extent.height as f32,
-    min_depth: 0.0,
-    max_depth: 1.0,
-  });
+struct PipelineViewportStateCIOwned {
+  pub ci: vk::PipelineViewportStateCreateInfo,
+  viewport: Pin<Box<vk::Viewport>>,
+  scissor: Pin<Box<vk::Rect2D>>,
+}
 
-  let scissor = Box::pin(vk::Rect2D {
-    offset: vk::Offset2D { x: 0, y: 0 },
-    extent: swapchain_extent,
-  });
+impl PipelineViewportStateCIOwned {
+  fn new(swapchain_extent: vk::Extent2D) -> Self {
+    // Make sure viewport and scissor location not change
+    let viewport = Box::pin(vk::Viewport {
+      x: 0.0,
+      y: 0.0,
+      width: swapchain_extent.width as f32,
+      height: swapchain_extent.height as f32,
+      min_depth: 0.0,
+      max_depth: 1.0,
+    });
 
-  let viewport_state_ci = vk::PipelineViewportStateCreateInfo {
-    s_type: vk::StructureType::PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-    p_next: ptr::null(),
-    flags: vk::PipelineViewportStateCreateFlags::empty(),
-    scissor_count: 1,
-    p_scissors: addr_of!(*scissor),
-    viewport_count: 1,
-    p_viewports: addr_of!(*viewport),
-  };
+    let scissor = Box::pin(vk::Rect2D {
+      offset: vk::Offset2D { x: 0, y: 0 },
+      extent: swapchain_extent,
+    });
 
-  (viewport_state_ci, viewport, scissor)
+    let ci = vk::PipelineViewportStateCreateInfo {
+      s_type: vk::StructureType::PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+      p_next: ptr::null(),
+      flags: vk::PipelineViewportStateCreateFlags::empty(),
+      scissor_count: 1,
+      p_scissors: addr_of!(*scissor),
+      viewport_count: 1,
+      p_viewports: addr_of!(*viewport),
+    };
+
+    Self {
+      ci,
+      viewport,
+      scissor,
+    }
+  }
 }
 
 fn get_no_depth_rasterization_state_ci() -> vk::PipelineRasterizationStateCreateInfo {
@@ -126,31 +132,38 @@ fn get_no_multisample_state_ci() -> vk::PipelineMultisampleStateCreateInfo {
   }
 }
 
-fn get_no_blend_color_blend_state_ci() -> (
-  vk::PipelineColorBlendStateCreateInfo,
-  Pin<Box<vk::PipelineColorBlendAttachmentState>>,
-) {
-  let attachment_state = Box::pin(vk::PipelineColorBlendAttachmentState {
-    blend_enable: vk::FALSE,
-    color_write_mask: vk::ColorComponentFlags::RGBA,
-    src_color_blend_factor: vk::BlendFactor::ONE,
-    dst_color_blend_factor: vk::BlendFactor::ZERO,
-    color_blend_op: vk::BlendOp::ADD,
-    src_alpha_blend_factor: vk::BlendFactor::ONE,
-    dst_alpha_blend_factor: vk::BlendFactor::ZERO,
-    alpha_blend_op: vk::BlendOp::ADD,
-  });
+struct PipelineColorBlendStateCIOwned {
+  pub ci: vk::PipelineColorBlendStateCreateInfo,
+  attachment_state: Pin<Box<vk::PipelineColorBlendAttachmentState>>,
+}
 
-  let color_blend_state = vk::PipelineColorBlendStateCreateInfo {
-    s_type: vk::StructureType::PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-    p_next: ptr::null(),
-    flags: vk::PipelineColorBlendStateCreateFlags::empty(),
-    logic_op_enable: vk::FALSE,
-    logic_op: vk::LogicOp::COPY,
-    attachment_count: 1,
-    p_attachments: addr_of!(*attachment_state),
-    blend_constants: [0.0, 0.0, 0.0, 0.0],
-  };
+impl PipelineColorBlendStateCIOwned {
+  fn no_blend_color() -> Self {
+    let attachment_state = Box::pin(vk::PipelineColorBlendAttachmentState {
+      blend_enable: vk::FALSE,
+      color_write_mask: vk::ColorComponentFlags::RGBA,
+      src_color_blend_factor: vk::BlendFactor::ONE,
+      dst_color_blend_factor: vk::BlendFactor::ZERO,
+      color_blend_op: vk::BlendOp::ADD,
+      src_alpha_blend_factor: vk::BlendFactor::ONE,
+      dst_alpha_blend_factor: vk::BlendFactor::ZERO,
+      alpha_blend_op: vk::BlendOp::ADD,
+    });
 
-  (color_blend_state, attachment_state)
+    let ci = vk::PipelineColorBlendStateCreateInfo {
+      s_type: vk::StructureType::PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+      p_next: ptr::null(),
+      flags: vk::PipelineColorBlendStateCreateFlags::empty(),
+      logic_op_enable: vk::FALSE,
+      logic_op: vk::LogicOp::COPY,
+      attachment_count: 1,
+      p_attachments: addr_of!(*attachment_state),
+      blend_constants: [0.0, 0.0, 0.0, 0.0],
+    };
+
+    Self {
+      ci,
+      attachment_state,
+    }
+  }
 }

@@ -11,7 +11,7 @@ pub struct Square {
 }
 
 impl Square {
-  pub const MODEL_INDEX: ColorModelIndex = ColorModels::SQUARE_INDEX;
+  const MODEL_INDEX: ColorModelIndex = ColorModels::SQUARE_INDEX;
 
   pub fn new(position: Point3<f32>) -> Self {
     Self {
@@ -86,7 +86,7 @@ pub struct Niko {
 }
 
 impl Niko {
-  pub const MODEL_INDEX: TexModelIndex = TexModels::NIKO_INDEX;
+  const MODEL_INDEX: TexModelIndex = TexModels::NIKO_INDEX;
 
   pub fn from_full(position: Point3<f32>, rotation: Euler<Rad<f32>>, scale: f32) -> Self {
     Self {
